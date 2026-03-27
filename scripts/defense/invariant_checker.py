@@ -1,129 +1,92 @@
 #!/usr/bin/env python3
 """
 invariant_checker.py  —  SWaT P1 Process Invariant Checker
-Target: Allen-Bradley ControlLogix PLC1 via EtherNet/IP (pycomm3)
-
-Reads PLC1 tags directly (not from Modbus traffic) every poll_interval seconds.
-Checks 8 process invariants derived from SWaT P1 P&ID (Adepu & Mathur, IFIP SEC 2016).
-Writes /tmp/inv_flag (0 or 1) for fusion.py to read.
+Target: Allen-Bradley ControlLogix PLC1 via pylogix
 
 Usage:
   python3 invariant_checker.py --plc-ip 192.168.1.10
 """
 
-import argparse, time, json
+import argparse, time
 from datetime import datetime
-from pycomm3 import LogixDriver, CommError as PycommException
+from pylogix import PLC
 
-# Tag paths — confirm with lab engineer
-TAGS = {
-    'MV101' : 'HMI_MV101:O.Data',    # BOOL
-    'P101'  : 'HMI_P101:O.Data',     # BOOL
-    'P102'  : 'HMI_P102:O.Data',     # BOOL
-    'LIT101': 'HMI_LIT101:I.Data',   # REAL (mm)
-    'FIT101': 'HMI_FIT101:I.Data',   # REAL (L/s)
-}
+READ_TAGS = [
+    'HMI_LIT101.Pv',
+    'AI_FIT_101_FLOW',
+    'HMI_MV101.Cmd',
+    'HMI_P101.Auto',
+    'HMI_P102.Auto',
+]
 
-# Thresholds from SWaT P1 normal operating ranges
-LIT_HH = 800.0   # High-high level (mm)
-LIT_LL = 250.0   # Low-low level (mm)
-FIT_MIN = 0.4    # Minimum flow when MV101 open (m³/h equivalent)
+LIT_HH  = 800.0
+LIT_LL  = 250.0
+FIT_MIN = 0.4
 
 
-def check_invariants(state: dict) -> list:
-    """
-    8 SWaT P1 invariants. Returns list of violated invariant IDs.
-    """
-    mv  = state.get('MV101')   # True=OPEN, False=CLOSED
-    p1  = state.get('P101')    # True=ON
-    p2  = state.get('P102')    # True=ON
-    lit = state.get('LIT101')  # mm float
-    fit = state.get('FIT101')  # L/s float
+def check_invariants(state):
+    lit = state.get('HMI_LIT101.Pv')
+    fit = state.get('AI_FIT_101_FLOW')
+    mv  = state.get('HMI_MV101.Cmd')      # 2=OPEN, 1=CLOSED
+    p1  = state.get('HMI_P101.Auto')      # True=auto/running
+    p2  = state.get('HMI_P102.Auto')
 
     violations = []
+    mv_open = (mv == 2) if mv is not None else None
+    mv_closed = (mv == 1) if mv is not None else None
 
-    # I-1: If MV101 open, inflow FIT101 must be > threshold
-    if mv is True and fit is not None and fit < FIT_MIN:
+    if mv_open and fit is not None and fit < FIT_MIN:
         violations.append(('I-1', f'MV101=OPEN but FIT101={fit:.3f} < {FIT_MIN}'))
-
-    # I-2: If P101 on, FIT101 must be > threshold (pump running -> flow)
-    if p1 is True and fit is not None and fit < FIT_MIN:
+    if p1 and fit is not None and fit < FIT_MIN:
         violations.append(('I-2', f'P101=ON but FIT101={fit:.3f} < {FIT_MIN}'))
-
-    # I-3: If LIT101 > HH, MV101 should be closed (overflow protection)
-    if lit is not None and lit > LIT_HH and mv is True:
+    if lit is not None and lit > LIT_HH and mv_open:
         violations.append(('I-3', f'LIT101={lit:.1f} > {LIT_HH} but MV101=OPEN'))
-
-    # I-4: If LIT101 < LL, P101 should be off (dry pump protection)
-    if lit is not None and lit < LIT_LL and p1 is True:
+    if lit is not None and lit < LIT_LL and p1:
         violations.append(('I-4', f'LIT101={lit:.1f} < {LIT_LL} but P101=ON'))
-
-    # I-5: If LIT101 < LL, MV101 should open (refill)
-    if lit is not None and lit < LIT_LL and mv is False:
+    if lit is not None and lit < LIT_LL and mv_closed:
         violations.append(('I-5', f'LIT101={lit:.1f} < {LIT_LL} but MV101=CLOSED'))
-
-    # I-6: P101 and P102 cannot both be ON simultaneously (single active pump)
-    if p1 is True and p2 is True:
+    if p1 and p2:
         violations.append(('I-6', 'P101=ON and P102=ON simultaneously'))
-
-    # I-7: If P101=OFF and MV101=CLOSED, FIT101 must be ~0 (no phantom flow)
-    if p1 is False and mv is False and fit is not None and fit > FIT_MIN:
+    if not p1 and mv_closed and fit is not None and fit > FIT_MIN:
         violations.append(('I-7', f'P101=OFF MV101=CLOSED but FIT101={fit:.3f} > 0'))
-
-    # I-8: FIT101 must never exceed physical pipe capacity
     if fit is not None and fit > 2.0:
-        violations.append(('I-8', f'FIT101={fit:.3f} exceeds physical max (2.0 L/s)'))
-
+        violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
     return violations
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--plc-ip',        required=True)
+    ap.add_argument('--plc-ip',        default='192.168.1.10')
     ap.add_argument('--poll-interval', type=float, default=1.0)
     ap.add_argument('--flag-file',     default='/tmp/inv_flag')
     args = ap.parse_args()
 
-    print(f"[*] Invariant Checker started  PLC={args.plc_ip}  interval={args.poll_interval}s")
-    print(f"    Flag file: {args.flag_file}")
-
-    tag_paths = list(TAGS.values())
-    tag_names = list(TAGS.keys())
-
+    print(f"[*] Invariant Checker  PLC={args.plc_ip}  interval={args.poll_interval}s")
     cycle = 0
     while True:
         try:
-            with LogixDriver(args.plc_ip) as plc:
+            with PLC() as plc:
+                plc.IPAddress = args.plc_ip
                 while True:
-                    results = plc.read(*tag_paths)
+                    results = plc.Read(READ_TAGS)
                     if not isinstance(results, list):
                         results = [results]
-
-                    state = {}
-                    for name, r in zip(tag_names, results):
-                        state[name] = r.value if r.error is None else None
-
+                    state = {r.TagName: r.Value for r in results if r.Value is not None}
                     violations = check_invariants(state)
                     inv_flag = 1 if violations else 0
-
                     with open(args.flag_file, 'w') as f:
                         f.write(str(inv_flag))
-
                     cycle += 1
                     ts = datetime.now().strftime('%H:%M:%S')
                     if violations:
-                        print(f"[{ts}] cycle={cycle:5d}  *** INVARIANT VIOLATION ***")
+                        print(f"[{ts}] cycle={cycle:5d}  *** VIOLATION ***")
                         for inv_id, msg in violations:
                             print(f"             {inv_id}: {msg}")
                     elif cycle % 10 == 0:
-                        vals = {k: f"{v:.2f}" if isinstance(v, float) else str(v)
-                                for k, v in state.items()}
-                        print(f"[{ts}] cycle={cycle:5d}  OK  {vals}")
-
+                        print(f"[{ts}] cycle={cycle:5d}  OK  {state}")
                     time.sleep(args.poll_interval)
-
-        except PycommException as e:
-            print(f"[!] EtherNet/IP error: {e} — reconnecting in 3s...")
+        except Exception as e:
+            print(f"[!] Error: {e} — reconnecting in 3s...")
             with open(args.flag_file, 'w') as f:
                 f.write('0')
             time.sleep(3)

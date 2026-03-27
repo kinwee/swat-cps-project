@@ -1,191 +1,151 @@
 #!/usr/bin/env python3
 """
 recovery_agent.py  —  SWaT Shallow Recovery Pipeline
-Target: Allen-Bradley ControlLogix PLC1 via EtherNet/IP (pycomm3)
-
-5-step recovery triggered by fusion.py:
-  1. DETECT  — log alert timestamp
-  2. CONTAIN — iptables block attacker, isolate via VLAN (if supported)
-  3. SAFE STATE — write safe tag values to PLC1 via CIP tag write
-  4. FAILOVER — switch from PLC1A to PLC1B (hot standby)
-  5. VERIFY  — poll invariants for 5 clean cycles before resuming
+Target: Allen-Bradley ControlLogix PLC1 via pylogix
 
 Usage:
   python3 recovery_agent.py --plc-ip 192.168.1.10 --plc-b-ip 192.168.1.11 \
-                             --attacker-ip 192.168.0.99
+      --attacker-ip 192.168.1.99
 """
 
-import argparse, json, os, subprocess, sys, time
+import argparse, json, os, subprocess, time
 from datetime import datetime
-from pycomm3 import LogixDriver, CommError as PycommException
+from pylogix import PLC
 
-# Safe-state tag values — confirm with lab engineer
-SAFE_STATE_TAGS = {
-    'HMI_MV101:O.Data': True,    # Open inlet valve (allow refill)
-    'HMI_P101:O.Data' : False,   # Stop pump (prevent dry run)
-    'HMI_P102:O.Data' : False,   # Standby pump off
-}
+# Safe state: MV101 open, P101 off (prevent dry run, allow refill)
+SAFE_STATE = [
+    ('HMI_MV101.Auto', False),
+    ('HMI_MV101.Cmd',  2),       # 2=OPEN
+    ('HMI_MV101.Auto', True),
+    ('HMI_P101.Auto',  False),
+    ('HMI_P101.Cmd',   1),       # 1=OFF
+    ('HMI_P101.Auto',  True),
+]
 
-# Invariant tag paths for verify step
-VERIFY_TAGS = {
-    'MV101' : 'HMI_MV101:O.Data',
-    'P101'  : 'HMI_P101:O.Data',
-    'LIT101': 'HMI_LIT101:I.Data',
-    'FIT101': 'HMI_FIT101:I.Data',
-}
-LIT_LL = 250.0
-FIT_MIN = 0.4
+READ_TAGS  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW', 'HMI_MV101.Cmd', 'HMI_P101.Auto']
+LIT_LL     = 250.0
+FIT_MIN    = 0.4
+LOG_PATH   = 'recovery_log.json'
 
 
-def log(msg, log_path='recovery_log.json', entry=None):
+def log(msg, entry=None):
     ts = datetime.now().isoformat()
     print(f"[{ts[:19]}] {msg}")
     if entry:
         try:
-            with open(log_path, 'r') as f:
-                data = json.load(f)
-        except:
-            data = []
+            with open(LOG_PATH) as f: data = json.load(f)
+        except: data = []
         data.append({'time': ts, **entry})
-        with open(log_path, 'w') as f:
-            json.dump(data, f, indent=2)
+        with open(LOG_PATH, 'w') as f: json.dump(data, f, indent=2)
+
+
+def write_tag(ip, tag, value):
+    with PLC() as plc:
+        plc.IPAddress = ip
+        plc.Write(tag, value)
 
 
 def step1_detect(attacker_ip):
-    log("STEP 1 — DETECT: Alert confirmed by fusion engine",
-        entry={'step': 1, 'action': 'detect', 'attacker_ip': attacker_ip})
+    log("STEP 1 — DETECT", entry={'step': 1, 'action': 'detect', 'attacker_ip': attacker_ip})
 
 
-def step2_contain(attacker_ip, iface):
-    log(f"STEP 2 — CONTAIN: Blocking attacker {attacker_ip} on port 44818")
-    # Block EtherNet/IP port (44818) from attacker
-    cmds = [
-        ['iptables', '-I', 'INPUT',   '-s', attacker_ip, '-p', 'tcp',
-         '--dport', '44818', '-j', 'DROP'],
-        ['iptables', '-I', 'FORWARD', '-s', attacker_ip, '-p', 'tcp',
-         '--dport', '44818', '-j', 'DROP'],
-    ]
-    for cmd in cmds:
-        result = subprocess.run(cmd, capture_output=True)
-        if result.returncode == 0:
-            log(f"    iptables rule added: {' '.join(cmd[3:])}")
-        else:
-            log(f"    [!] iptables failed: {result.stderr.decode()}")
-    log("STEP 2 — CONTAIN complete",
-        entry={'step': 2, 'action': 'contain', 'attacker_ip': attacker_ip})
+def step2_contain(attacker_ip):
+    log(f"STEP 2 — CONTAIN: blocking {attacker_ip} port 44818")
+    for cmd in [
+        ['iptables', '-I', 'INPUT',   '-s', attacker_ip, '-p', 'tcp', '--dport', '44818', '-j', 'DROP'],
+        ['iptables', '-I', 'FORWARD', '-s', attacker_ip, '-p', 'tcp', '--dport', '44818', '-j', 'DROP'],
+    ]:
+        r = subprocess.run(cmd, capture_output=True)
+        status = "OK" if r.returncode == 0 else r.stderr.decode()
+        log(f"    {' '.join(cmd[3:])}: {status}")
+    log("STEP 2 — CONTAIN complete", entry={'step': 2, 'action': 'contain'})
 
 
 def step3_safe_state(plc_ip):
-    log(f"STEP 3 — SAFE STATE: Writing safe tag values to PLC {plc_ip}")
+    log(f"STEP 3 — SAFE STATE -> PLC {plc_ip}")
     try:
-        with LogixDriver(plc_ip) as plc:
-            writes = [(tag, val) for tag, val in SAFE_STATE_TAGS.items()]
-            results = plc.write(*writes)
-            if not isinstance(results, list):
-                results = [results]
-            for tag, r in zip(SAFE_STATE_TAGS.keys(), results):
-                status = "OK" if r.error is None else f"FAILED: {r.error}"
-                val = SAFE_STATE_TAGS[tag]
-                log(f"    {tag} = {val}  [{status}]")
-        log("STEP 3 — SAFE STATE complete",
-            entry={'step': 3, 'action': 'safe_state', 'tags': {k: str(v) for k, v in SAFE_STATE_TAGS.items()}})
-    except PycommException as e:
-        log(f"[!] SAFE STATE failed — cannot reach PLC: {e}")
-        log("    *** Manually set MV101=OPEN, P101=OFF via HMI immediately! ***")
+        with PLC() as plc:
+            plc.IPAddress = plc_ip
+            for tag, val in SAFE_STATE:
+                plc.Write(tag, val)
+                log(f"    {tag} = {val}")
+        log("STEP 3 — SAFE STATE complete", entry={'step': 3, 'action': 'safe_state'})
+    except Exception as e:
+        log(f"[!] SAFE STATE failed: {e}")
+        log("    *** Manually restore MV101=OPEN, P101=OFF via HMI! ***")
 
 
 def step4_failover(plc_b_ip):
     if not plc_b_ip:
-        log("STEP 4 — FAILOVER: No PLC-B IP provided, skipping failover")
+        log("STEP 4 — FAILOVER: no PLC-B IP, skipping")
         return
-    log(f"STEP 4 — FAILOVER: Activating hot-standby PLC1B at {plc_b_ip}")
+    log(f"STEP 4 — FAILOVER -> PLC1B {plc_b_ip}")
     try:
-        with LogixDriver(plc_b_ip) as plc:
-            info = plc.info
-            log(f"    PLC1B connected: {info.get('product_name')} "
-                f"rev={info.get('revision')}")
-            # Write same safe state to PLC1B
-            writes = [(tag, val) for tag, val in SAFE_STATE_TAGS.items()]
-            plc.write(*writes)
-            log("    PLC1B safe state written — now primary controller")
-        log("STEP 4 — FAILOVER complete",
-            entry={'step': 4, 'action': 'failover', 'plc_b_ip': plc_b_ip})
-    except PycommException as e:
-        log(f"[!] FAILOVER failed — PLC1B unreachable: {e}")
+        with PLC() as plc:
+            plc.IPAddress = plc_b_ip
+            for tag, val in SAFE_STATE:
+                plc.Write(tag, val)
+        log("STEP 4 — FAILOVER complete", entry={'step': 4, 'action': 'failover', 'plc_b': plc_b_ip})
+    except Exception as e:
+        log(f"[!] FAILOVER failed: {e}")
 
 
-def step5_verify(plc_ip, clean_cycles_required=5, poll_interval=1.0):
-    log(f"STEP 5 — VERIFY: Polling invariants on {plc_ip} "
-        f"({clean_cycles_required} clean cycles required)")
-    tag_paths = list(VERIFY_TAGS.values())
-    tag_names = list(VERIFY_TAGS.keys())
-    clean = 0
-    total = 0
-
-    while clean < clean_cycles_required:
+def step5_verify(plc_ip, clean_required=5, interval=1.0):
+    log(f"STEP 5 — VERIFY: need {clean_required} clean cycles")
+    clean = 0; total = 0
+    while clean < clean_required:
         try:
-            with LogixDriver(plc_ip) as plc:
-                while clean < clean_cycles_required:
-                    results = plc.read(*tag_paths)
-                    if not isinstance(results, list):
-                        results = [results]
-                    state = {n: r.value for n, r in zip(tag_names, results) if r.error is None}
+            with PLC() as plc:
+                plc.IPAddress = plc_ip
+                while clean < clean_required:
+                    results = plc.Read(READ_TAGS)
+                    if not isinstance(results, list): results = [results]
+                    state = {r.TagName: r.Value for r in results if r.Value is not None}
                     total += 1
-
-                    # Simple invariant check
                     violations = []
-                    mv  = state.get('MV101')
-                    p1  = state.get('P101')
-                    lit = state.get('LIT101')
-                    fit = state.get('FIT101')
+                    p1  = state.get('HMI_P101.Auto')
+                    fit = state.get('AI_FIT_101_FLOW')
+                    lit = state.get('HMI_LIT101.Pv')
                     if p1 and fit is not None and fit < FIT_MIN:
                         violations.append('I-2')
                     if lit is not None and lit < LIT_LL and p1:
                         violations.append('I-4')
-
                     if not violations:
                         clean += 1
-                        log(f"    Cycle {total}: clean ({clean}/{clean_cycles_required})  "
-                            f"LIT101={lit:.1f}mm  FIT101={fit:.3f}")
+                        log(f"    Cycle {total}: clean ({clean}/{clean_required})  LIT101={lit:.1f}mm")
                     else:
                         clean = 0
-                        log(f"    Cycle {total}: VIOLATION {violations} — resetting clean count")
-
-                    time.sleep(poll_interval)
-        except PycommException as e:
-            log(f"    [!] EtherNet/IP error: {e} — retrying...")
-            clean = 0
-            time.sleep(3)
-
-    log(f"STEP 5 — VERIFY complete after {total} cycles",
-        entry={'step': 5, 'action': 'verify', 'total_cycles': total})
+                        log(f"    Cycle {total}: VIOLATION {violations} — resetting")
+                    time.sleep(interval)
+        except Exception as e:
+            log(f"    [!] {e} — retrying...")
+            clean = 0; time.sleep(3)
+    log(f"STEP 5 — VERIFY complete ({total} cycles)", entry={'step': 5, 'action': 'verify', 'cycles': total})
     log("*** RECOVERY COMPLETE — SWaT P1 resuming normal operation ***")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--plc-ip',      required=True, help='PLC1A IP')
-    ap.add_argument('--plc-b-ip',    default=None,  help='PLC1B hot-standby IP')
-    ap.add_argument('--attacker-ip', default=None,  help='Attacker IP to block')
+    ap.add_argument('--plc-ip',      default='192.168.1.10')
+    ap.add_argument('--plc-b-ip',    default='192.168.1.11')
+    ap.add_argument('--attacker-ip', default=None)
     ap.add_argument('--iface',       default='eth0')
-    ap.add_argument('--log',         default='recovery_log.json')
     args = ap.parse_args()
 
     print("=" * 60)
-    print("  SWaT Recovery Agent — EtherNet/IP / Allen-Bradley")
+    print("  SWaT Recovery Agent (pylogix / Allen-Bradley)")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     t0 = time.time()
     step1_detect(args.attacker_ip)
     if args.attacker_ip:
-        step2_contain(args.attacker_ip, args.iface)
+        step2_contain(args.attacker_ip)
     step3_safe_state(args.plc_ip)
     step4_failover(args.plc_b_ip)
     step5_verify(args.plc_ip)
-    elapsed = time.time() - t0
-    log(f"Total recovery time: {elapsed:.1f}s",
-        entry={'action': 'summary', 'elapsed_s': round(elapsed, 1)})
+    log(f"Total recovery time: {time.time()-t0:.1f}s",
+        entry={'action': 'summary', 'elapsed_s': round(time.time()-t0, 1)})
 
 if __name__ == '__main__':
     main()

