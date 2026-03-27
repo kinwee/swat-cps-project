@@ -14,7 +14,7 @@ P1 Tank ODE:
         A_tank  = SWaT P1 tank cross-sectional area (≈ 1.0 m² = 1,000,000 mm²/L)
 
 Usage:
-    python3 ode_estimator.py --plc-ip 192.168.0.10 --duration 60
+    python3 ode_estimator.py --plc-ip 192.168.1.10 --duration 60
 
 Output:
     - Console: predicted vs. measured LIT101 with residual

@@ -14,7 +14,7 @@ Modes:
 
 Usage:
   python3 phase2_spoof.py train  --data swat_normal.csv --epochs 100
-  python3 phase2_spoof.py attack --plc-ip 192.168.0.10 --iface eth0 --duration 120
+  python3 phase2_spoof.py attack --plc-ip 192.168.1.10 --iface eth0 --duration 120
 """
 
 import argparse, time, signal, sys

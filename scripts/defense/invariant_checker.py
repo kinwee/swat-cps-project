@@ -8,7 +8,7 @@ Checks 8 process invariants derived from SWaT P1 P&ID (Adepu & Mathur, IFIP SEC 
 Writes /tmp/inv_flag (0 or 1) for fusion.py to read.
 
 Usage:
-  python3 invariant_checker.py --plc-ip 192.168.0.10
+  python3 invariant_checker.py --plc-ip 192.168.1.10
 """
 
 import argparse, time, json

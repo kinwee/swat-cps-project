@@ -11,7 +11,7 @@ Writes /tmp/ae_flag (0 or 1) for fusion.py.
 
 Usage:
   python3 autoencoder_detector.py train --data swat_normal.csv --save ae_model.pt
-  python3 autoencoder_detector.py monitor --plc-ip 192.168.0.10 --model ae_model.pt
+  python3 autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model ae_model.pt
 """
 
 import argparse, time, sys
