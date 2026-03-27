@@ -20,7 +20,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from datetime import datetime
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 
 FEATURES  = ['LIT101.Pv', 'FIT101.Pv']
 WINDOW    = 10

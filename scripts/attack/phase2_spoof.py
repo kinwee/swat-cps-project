@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 
 EPSILON = 0.1    # ||delta||_inf constraint (Paper #31 Section 4)
 FEATURES = ['LIT101.Pv', 'FIT101.Pv']   # Analog tags to perturb (REAL type)

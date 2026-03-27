@@ -25,7 +25,7 @@ Usage:
 import argparse, pickle, time, threading, signal, sys
 from datetime import datetime
 
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 from scapy.all import ARP, Ether, sendp, get_if_hwaddr, getmacbyip
 
 # ── Tag map: confirm these with lab engineer from Studio 5000 ─────────────────

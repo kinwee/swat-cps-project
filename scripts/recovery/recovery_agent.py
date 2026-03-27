@@ -17,7 +17,7 @@ Usage:
 
 import argparse, json, os, subprocess, sys, time
 from datetime import datetime
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 
 # Safe-state tag values — confirm with lab engineer
 SAFE_STATE_TAGS = {

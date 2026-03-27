@@ -13,7 +13,7 @@ Usage:
 
 import argparse, time, json
 from datetime import datetime
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 
 # Tag paths — confirm with lab engineer
 TAGS = {

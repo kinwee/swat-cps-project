@@ -21,7 +21,7 @@ import argparse, json, os, pickle, subprocess, time, threading
 from collections import defaultdict
 from datetime import datetime
 
-from pycomm3 import LogixDriver, PycommException
+from pycomm3 import LogixDriver, CommError as PycommException
 from scapy.all import sniff, wrpcap, TCP, Raw
 
 ENIP_PORT = 44818
