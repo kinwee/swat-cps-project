@@ -22,11 +22,11 @@ import torch.nn as nn
 from datetime import datetime
 from pycomm3 import LogixDriver, PycommException
 
-FEATURES  = ['LIT101', 'FIT101']
+FEATURES  = ['LIT101.Pv', 'FIT101.Pv']
 WINDOW    = 10
 TAG_PATHS = {
-    'LIT101': 'HMI_LIT101:I.Data',
-    'FIT101': 'HMI_FIT101:I.Data',
+    'LIT101.Pv': 'HMI_LIT101:I.Data',
+    'FIT101.Pv': 'HMI_FIT101:I.Data',
 }
 
 

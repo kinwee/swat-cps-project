@@ -25,12 +25,12 @@ import torch.nn as nn
 from pycomm3 import LogixDriver, PycommException
 
 EPSILON = 0.1    # ||delta||_inf constraint (Paper #31 Section 4)
-FEATURES = ['LIT101', 'FIT101']   # Analog tags to perturb (REAL type)
+FEATURES = ['LIT101.Pv', 'FIT101.Pv']   # Analog tags to perturb (REAL type)
 
 # Tag paths for analog reads/writes on ControlLogix
 ANALOG_TAG_PATHS = {
-    'LIT101': 'HMI_LIT101:I.Data',
-    'FIT101': 'HMI_FIT101:I.Data',
+    'LIT101.Pv': 'HMI_LIT101:I.Data',
+    'FIT101.Pv': 'HMI_FIT101:I.Data',
 }
 
 stop_flag = False
