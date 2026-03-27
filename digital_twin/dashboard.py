@@ -17,6 +17,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.image as mpimg
+from PIL import Image
 from matplotlib.animation import FuncAnimation
 from collections import deque
 
@@ -99,9 +100,12 @@ def run_dashboard(df, speed=5, attack_start=None):
     for name, path in [('p1', 'swat_p1_stage.png'), ('arch', 'swat_architecture.png')]:
         full = os.path.join(IMG_DIR, path)
         if os.path.exists(full):
-            img = mpimg.imread(full)
-            if name == 'p1':   p1_img   = img
-            else:              arch_img = img
+            try:
+                img = np.array(Image.open(full).convert('RGBA'))
+                if name == 'p1':   p1_img   = img
+                else:              arch_img = img
+            except Exception as e:
+                print(f"[!] Could not load {path}: {e}")
 
     # ── Layout ────────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(20, 11), facecolor=BG)
