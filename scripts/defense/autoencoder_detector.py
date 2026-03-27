@@ -49,12 +49,14 @@ class Autoencoder(nn.Module):
 
 def train(data_path, save_path, epochs, window):
     print(f"[*] Loading {data_path}...")
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(data_path, low_memory=False)
     feat_cols = [c for c in FEATURES if c in df.columns]
     if not feat_cols:
         print(f"[!] Features {FEATURES} not found in CSV. Columns: {list(df.columns[:15])}")
         sys.exit(1)
 
+    for c in feat_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
     data = df[feat_cols].dropna().values.astype(np.float32)
     mu, sigma = data.mean(0), data.std(0) + 1e-8
     norm = (data - mu) / sigma

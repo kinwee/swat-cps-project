@@ -74,7 +74,7 @@ class AdversarialEncoder(nn.Module):
 
 def train(data_path, model_path, ae_path, epochs=100, window=10):
     print(f"[*] Loading SWaT normal data: {data_path}")
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(data_path, low_memory=False)
 
     # Normalise
     feat_cols = [c for c in FEATURES if c in df.columns]
@@ -82,6 +82,8 @@ def train(data_path, model_path, ae_path, epochs=100, window=10):
         print(f"[!] None of {FEATURES} found in CSV. Available: {list(df.columns[:10])}")
         sys.exit(1)
 
+    for c in feat_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
     data = df[feat_cols].dropna().values.astype(np.float32)
     mu, sigma = data.mean(0), data.std(0) + 1e-8
     data_norm = (data - mu) / sigma
