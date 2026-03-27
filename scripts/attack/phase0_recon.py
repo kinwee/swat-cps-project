@@ -11,7 +11,7 @@ What this does:
   5. Saves: enip_db.pkl, recon_results.json, swat_capture.pcap
 
 Usage:
-  sudo python3 phase0_recon.py --subnet 192.168.1.0/24 --iface eth0 --duration 1800
+  sudo python3 phase0_recon.py --subnet 192.168.0.0/24 --iface eth0 --duration 1800
 
 Dependencies:
   pip install pycomm3 scapy
@@ -138,7 +138,7 @@ def poll_tags(ip, duration, interval=1.0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--subnet',   default='192.168.1.0/24')
+    ap.add_argument('--subnet',   default='192.168.0.0/24')
     ap.add_argument('--plc-ip',   default=None, help='Skip scan, use this IP directly')
     ap.add_argument('--iface',    default='eth0')
     ap.add_argument('--duration', type=int, default=1800, help='Sniff/poll duration in seconds')

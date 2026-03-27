@@ -15,7 +15,7 @@ This prevents an attacker from resuming spoofed values after recovery.
 Reference: Proposed invariant-guided reconstruction (this project, SUTD 51.508)
 
 Usage:
-    python3 reentry_gate.py --plc-ip 192.168.1.10 [--ode-mode] [--sse-mode]
+    python3 reentry_gate.py --plc-ip 192.168.0.10 [--ode-mode] [--sse-mode]
 
 Output:
     - Console: per-sensor acceptance decisions

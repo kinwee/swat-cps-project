@@ -11,8 +11,8 @@ Target: Allen-Bradley ControlLogix PLC1 via EtherNet/IP (pycomm3)
   5. VERIFY  — poll invariants for 5 clean cycles before resuming
 
 Usage:
-  python3 recovery_agent.py --plc-ip 192.168.1.10 --plc-b-ip 192.168.1.11 \
-                             --attacker-ip 192.168.1.99
+  python3 recovery_agent.py --plc-ip 192.168.0.10 --plc-b-ip 192.168.0.11 \
+                             --attacker-ip 192.168.0.99
 """
 
 import argparse, json, os, subprocess, sys, time

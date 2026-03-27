@@ -16,7 +16,7 @@ Key difference from Modbus version:
 
 Usage:
   sudo python3 phase1_inject.py \
-      --plc-ip 192.168.1.10 --hmi-ip 192.168.1.20 \
+      --plc-ip 192.168.0.10 --hmi-ip 192.168.0.20 \
       --iface eth0 --db enip_db.pkl --duration 120
 
 *** Confirm TAG_MAP paths with lab engineer before running ***

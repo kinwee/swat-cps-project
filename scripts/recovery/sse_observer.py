@@ -24,7 +24,7 @@ State-space model (linearised SWaT P1):
     L = observer gain (set so A-LC has eigenvalue ≈ 0.7)
 
 Usage:
-    python3 sse_observer.py --plc-ip 192.168.1.10 --duration 60
+    python3 sse_observer.py --plc-ip 192.168.0.10 --duration 60
 
 Output:
     - Console: estimated state vs measured, attack residual δ
