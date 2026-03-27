@@ -34,7 +34,7 @@ import time
 from datetime import datetime
 
 import numpy as np
-from pymodbus.client import EtherNet/IPTcpClient
+from pylogix import PLC
 
 logging.basicConfig(
     level=logging.INFO,
@@ -101,7 +101,7 @@ def main():
                         help="Initial LIT101 reading (mm). Auto-read if not set.")
     args = parser.parse_args()
 
-    client = EtherNet/IPTcpClient(args.plc_ip, port=args.plc_port)
+    client = PLC(args.plc_ip, port=args.plc_port)
     if not client.connect():
         log.error(f"Cannot connect to {args.plc_ip}:{args.plc_port}")
         return
