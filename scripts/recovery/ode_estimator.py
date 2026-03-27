@@ -34,7 +34,7 @@ import time
 from datetime import datetime
 
 import numpy as np
-from pymodbus.client import ModbusTcpClient
+from pymodbus.client import EtherNet/IPTcpClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,7 +56,7 @@ Q_OUT_P102 = 2.5
 # Residual tolerance: if |predicted - measured| > TOLERANCE, sensor untrusted
 TOLERANCE_MM = 30.0    # mm
 
-# Modbus register map
+# EtherNet/IP register map
 REGS = {
     "MV101": ("coil",    1),
     "P101":  ("coil",    2),
@@ -101,7 +101,7 @@ def main():
                         help="Initial LIT101 reading (mm). Auto-read if not set.")
     args = parser.parse_args()
 
-    client = ModbusTcpClient(args.plc_ip, port=args.plc_port)
+    client = EtherNet/IPTcpClient(args.plc_ip, port=args.plc_port)
     if not client.connect():
         log.error(f"Cannot connect to {args.plc_ip}:{args.plc_port}")
         return

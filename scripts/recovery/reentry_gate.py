@@ -32,7 +32,7 @@ import os
 import time
 from datetime import datetime
 
-from pymodbus.client import ModbusTcpClient
+from pymodbus.client import EtherNet/IPTcpClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -189,7 +189,7 @@ def main():
                         help="Cross-check LIT101 with SSE observer")
     args = parser.parse_args()
 
-    client = ModbusTcpClient(args.plc_ip, port=args.plc_port)
+    client = EtherNet/IPTcpClient(args.plc_ip, port=args.plc_port)
     if not client.connect():
         log.error(f"Cannot connect to {args.plc_ip}:{args.plc_port}")
         return

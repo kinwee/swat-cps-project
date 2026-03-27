@@ -1,305 +1,192 @@
 #!/usr/bin/env python3
 """
-phase0_recon.py — SWaT P1 Attack: Phase 0 - Network Reconnaissance & Sniffing
-===============================================================================
-Based on: Alsabbagh et al., "A Stealthy False Command Injection Attack on
-          Modbus based SCADA Systems", IEEE CCNC 2023 (Paper #9)
+phase0_recon.py  —  SWaT Phase 0: Reconnaissance & Tag Database Building
+Target: Allen-Bradley ControlLogix PLCs over EtherNet/IP (TCP port 44818)
 
-PURPOSE:
-  1. Discover Modbus devices on the SWaT Level 1/2 network via NMAP SYN scan
-  2. Sniff Modbus TCP traffic and build a request-response pair database
-     (used in Phase 2 to replay fake responses to the SCADA HMI)
+What this does:
+  1. NMAP SYN scan for EtherNet/IP port 44818 on the OT subnet
+  2. Connects to each discovered PLC via pycomm3 and reads identity + P1 tags
+  3. Continuously polls tags to build a timestamped value database
+  4. Scapy-sniffs raw EtherNet/IP packets in parallel
+  5. Saves: enip_db.pkl, recon_results.json, swat_capture.pcap
 
-USAGE:
+Usage:
   sudo python3 phase0_recon.py --subnet 192.168.1.0/24 --iface eth0 --duration 1800
 
-REQUIREMENTS:
-  pip install scapy pymodbus python-nmap
-  Must be run as root (raw socket capture)
-
-NOTE: For use only on the SWaT testbed with iTrust lab engineer present.
+Dependencies:
+  pip install pycomm3 scapy
 """
 
-import argparse
-import json
-import os
-import time
-import pickle
-from datetime import datetime
+import argparse, json, os, pickle, subprocess, time, threading
 from collections import defaultdict
+from datetime import datetime
 
-# --- Imports ---
-try:
-    from scapy.all import sniff, wrpcap, rdpcap, TCP, Raw
-    from scapy.layers.inet import IP
-except ImportError:
-    print("[!] scapy not installed. Run: pip install scapy")
-    exit(1)
+from pycomm3 import LogixDriver, PycommException
+from scapy.all import sniff, wrpcap, TCP, Raw
 
-try:
-    import nmap
-except ImportError:
-    print("[!] python-nmap not installed. Run: pip install python-nmap")
-    exit(1)
+ENIP_PORT = 44818
 
+# SWaT P1 ControlLogix tag paths (Studio 5000 / RSLogix 5000 naming)
+# *** Confirm exact tag names with lab engineer before running ***
+P1_TAGS = {
+    'MV101' : 'HMI_MV101:O.Data',   # Motor valve 101 — BOOL output
+    'P101'  : 'HMI_P101:O.Data',    # Pump 101 — BOOL output
+    'P102'  : 'HMI_P102:O.Data',    # Pump 102 standby — BOOL output
+    'LIT101': 'HMI_LIT101:I.Data',  # Level transmitter — REAL (mm)
+    'FIT101': 'HMI_FIT101:I.Data',  # Flow transmitter — REAL (L/s)
+}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 1: Network Reconnaissance (NMAP SYN Scan)
-# ─────────────────────────────────────────────────────────────────────────────
-def run_nmap_recon(subnet: str) -> dict:
-    """
-    SYN scan the subnet for Modbus devices on port 502.
-    SYN (half-open) scan avoids completing the TCP handshake — harder to detect
-    by default firewall rules (as described in Paper #9, Section IV-A-1).
-    """
-    print(f"\n[*] Phase 0.1: NMAP SYN scan on {subnet} port 502...")
-    nm = nmap.PortScanner()
-
-    # -sS: SYN scan (half-open, stealthy)
-    # -p 502: Modbus TCP port
-    # -sV: version detection
-    # -O: OS detection
-    nm.scan(hosts=subnet, ports='502', arguments='-sS -sV -O --open')
-
-    devices = {}
-    for host in nm.all_hosts():
-        if nm[host].state() == 'up':
-            port_info = nm[host].get('tcp', {}).get(502, {})
-            if port_info.get('state') == 'open':
-                devices[host] = {
-                    'mac':     nm[host].get('addresses', {}).get('mac', 'unknown'),
-                    'os':      nm[host].get('osmatch', [{}])[0].get('name', 'unknown'),
-                    'service': port_info.get('name', 'modbus'),
-                    'version': port_info.get('version', ''),
-                }
-                print(f"  [+] Modbus device found: {host}")
-                print(f"      MAC: {devices[host]['mac']}")
-                print(f"      OS:  {devices[host]['os']}")
-
-    if not devices:
-        print("  [-] No Modbus devices found. Check subnet and interface.")
-    return devices
+captured_packets = []
+tag_db = defaultdict(list)   # tag_name -> [(timestamp, value), ...]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 2: Sniff & Build Request-Response Database
-# ─────────────────────────────────────────────────────────────────────────────
-def parse_modbus_frame(payload: bytes) -> dict | None:
-    """
-    Parse a raw Modbus TCP Application Data Unit (ADU).
+def scan_enip_hosts(subnet):
+    print(f"[*] Scanning {subnet} for EtherNet/IP (port {ENIP_PORT})...")
+    result = subprocess.run(
+        ['nmap', '-sS', '-p', str(ENIP_PORT), '--open', '-oG', '-', subnet],
+        capture_output=True, text=True
+    )
+    hosts = []
+    for line in result.stdout.splitlines():
+        if 'open' in line and 'Host:' in line:
+            ip = line.split()[1]
+            hosts.append(ip)
+            print(f"    [+] EtherNet/IP host: {ip}")
+    if not hosts:
+        print("    [-] No hosts found. Verify subnet and that SWaT is running.")
+    return hosts
 
-    Modbus TCP frame format (from Paper #9 Fig. 2):
-    ┌──────────────┬──────────────┬──────────────┬───────────┬───────────┬──────────────┐
-    │ Trans ID (2B)│ Proto ID (2B)│  Length (2B) │ Unit ID(1)│ Func(1B)  │  Data (n B)  │
-    └──────────────┴──────────────┴──────────────┴───────────┴───────────┴──────────────┘
 
-    Matching key from paper: (Transaction ID, Unit ID, Function Code)
-    """
-    if len(payload) < 8:
-        return None
+def read_plc_identity(ip):
+    print(f"\n[*] Connecting to ControlLogix PLC at {ip}...")
+    identity = {'ip': ip, 'tags': {}}
     try:
-        trans_id   = int.from_bytes(payload[0:2], 'big')
-        proto_id   = int.from_bytes(payload[2:4], 'big')
-        length     = int.from_bytes(payload[4:6], 'big')
-        unit_id    = payload[6]
-        func_code  = payload[7]
-        data       = payload[8:]
+        with LogixDriver(ip) as plc:
+            info = plc.info
+            identity.update({
+                'product_name': info.get('product_name'),
+                'vendor'      : info.get('vendor'),
+                'revision'    : info.get('revision'),
+                'serial'      : info.get('serial'),
+            })
+            print(f"    Product : {identity['product_name']}")
+            print(f"    Vendor  : {identity['vendor']}")
+            print(f"    Revision: {identity['revision']}")
 
-        if proto_id != 0:          # Modbus protocol identifier must be 0x0000
-            return None
-
-        return {
-            'trans_id':  trans_id,
-            'proto_id':  proto_id,
-            'length':    length,
-            'unit_id':   unit_id,
-            'func_code': func_code,
-            'data':      data.hex(),
-            'raw':       payload.hex(),
-        }
-    except Exception:
-        return None
-
-
-class ModbusDatabase:
-    """
-    Stores request-response pairs keyed by (trans_id, unit_id, func_code).
-    Duplicates are eliminated as described in Paper #9 Section IV-A-2.
-    """
-    def __init__(self):
-        # key: (unit_id, func_code) → list of (request_raw, response_raw)
-        # We drop trans_id from the key since it rotates — we match on content
-        self.pairs: dict = {}
-        self.raw_requests: dict = {}   # trans_id → request frame
-        self.raw_responses: dict = {}  # trans_id → response frame
-        self.plc_ip: str = ""
-        self.hmi_ip: str = ""
-
-    def add_packet(self, src_ip: str, dst_ip: str, payload: bytes):
-        frame = parse_modbus_frame(payload)
-        if not frame:
-            return
-
-        tid = frame['trans_id']
-
-        if dst_ip == self.plc_ip:
-            # HMI → PLC: this is a request
-            self.raw_requests[tid] = frame
-        elif src_ip == self.plc_ip:
-            # PLC → HMI: this is a response
-            self.raw_responses[tid] = frame
-            # Try to pair with stored request
-            if tid in self.raw_requests:
-                req = self.raw_requests[tid]
-                key = (req['unit_id'], req['func_code'])
-                if key not in self.pairs:
-                    self.pairs[key] = {
-                        'request':  req,
-                        'response': frame,
-                    }
-                    print(f"  [+] New pair: unit={req['unit_id']} func=0x{req['func_code']:02X} "
-                          f"→ {self._func_name(req['func_code'])}")
-
-    def lookup(self, unit_id: int, func_code: int) -> dict | None:
-        """Return stored response for a given (unit_id, func_code)."""
-        return self.pairs.get((unit_id, func_code))
-
-    def _func_name(self, fc: int) -> str:
-        names = {
-            0x01: 'Read Coil Status',
-            0x02: 'Read Discrete Input',
-            0x03: 'Read Holding Registers',
-            0x04: 'Read Input Registers',
-            0x05: 'Write Single Coil',
-            0x06: 'Write Single Register',
-            0x0F: 'Write Multiple Coils',
-            0x10: 'Write Multiple Registers',
-        }
-        return names.get(fc, f'Unknown(0x{fc:02X})')
-
-    def save(self, path: str):
-        with open(path, 'wb') as f:
-            pickle.dump(self, f)
-        print(f"\n[*] Database saved → {path}")
-        print(f"    Total unique pairs: {len(self.pairs)}")
-        for key, val in self.pairs.items():
-            print(f"    unit={key[0]} func=0x{key[1]:02X} "
-                  f"({self._func_name(key[1])})")
-
-    @staticmethod
-    def load(path: str) -> 'ModbusDatabase':
-        with open(path, 'rb') as f:
-            return pickle.load(f)
+            print("    [*] Reading P1 tags...")
+            for name, tag_path in P1_TAGS.items():
+                try:
+                    r = plc.read(tag_path)
+                    identity['tags'][name] = {'path': tag_path, 'value': r.value, 'type': str(r.type)}
+                    print(f"        {name:8s}: {r.value}  ({r.type})")
+                    tag_db[name].append((time.time(), r.value))
+                except Exception as e:
+                    identity['tags'][name] = {'path': tag_path, 'error': str(e)}
+                    print(f"        {name:8s}: ERROR — {e}")
+    except PycommException as e:
+        print(f"    [-] Connection failed: {e}")
+        print(f"        Check: PLC IP correct? EtherNet/IP enabled? Slot number?")
+    return identity
 
 
-def sniff_and_build_db(iface: str, plc_ip: str, hmi_ip: str,
-                       duration: int, pcap_out: str, db_out: str):
-    """
-    Capture Modbus TCP traffic for `duration` seconds and build the pair DB.
-    """
-    print(f"\n[*] Phase 0.2: Sniffing Modbus traffic for {duration}s "
-          f"on {iface}...")
-    print(f"    HMI: {hmi_ip}  |  PLC: {plc_ip}")
-
-    db = ModbusDatabase()
-    db.plc_ip = plc_ip
-    db.hmi_ip = hmi_ip
-
-    captured = []
-
-    def packet_handler(pkt):
-        if TCP not in pkt or pkt[TCP].dport not in (502,) and pkt[TCP].sport not in (502,):
-            return
-        if Raw not in pkt:
-            return
-        src = pkt[IP].src
-        dst = pkt[IP].dst
-        payload = bytes(pkt[Raw])
-        captured.append(pkt)
-        db.add_packet(src, dst, payload)
-
-    sniff(iface=iface,
-          filter=f"tcp port 502",
-          prn=packet_handler,
-          timeout=duration,
-          store=False)
-
-    # Save raw pcap
-    wrpcap(pcap_out, captured)
-    print(f"[*] Raw capture saved → {pcap_out} ({len(captured)} packets)")
-
-    # Save pair database
-    db.save(db_out)
-    return db
+def packet_callback(pkt):
+    if TCP in pkt and (pkt[TCP].dport == ENIP_PORT or pkt[TCP].sport == ENIP_PORT):
+        captured_packets.append(pkt)
+        if Raw in pkt:
+            direction = "→PLC" if pkt[TCP].dport == ENIP_PORT else "←PLC"
+            print(f"    [ENIP] {direction}  {len(pkt[Raw].load):4d}B  seq={pkt[TCP].seq}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────────────────────────────────────
+def sniff_thread_fn(iface, duration, pcap_file):
+    print(f"\n[*] Sniffing EtherNet/IP on {iface} for {duration}s (tcp port {ENIP_PORT})...")
+    sniff(iface=iface, filter=f"tcp port {ENIP_PORT}",
+          prn=packet_callback, timeout=duration, store=False)
+    if captured_packets:
+        wrpcap(pcap_file, captured_packets)
+        print(f"[+] {len(captured_packets)} packets saved to {pcap_file}")
+    else:
+        print("[-] No EtherNet/IP packets captured.")
+
+
+def poll_tags(ip, duration, interval=1.0):
+    print(f"\n[*] Polling tags on {ip} every {interval}s for {duration}s...")
+    end_time = time.time() + duration
+    n = 0
+    try:
+        with LogixDriver(ip) as plc:
+            tag_paths = list(P1_TAGS.values())
+            while time.time() < end_time:
+                ts = time.time()
+                try:
+                    results = plc.read(*tag_paths)
+                    if not isinstance(results, list):
+                        results = [results]
+                    for name, r in zip(P1_TAGS.keys(), results):
+                        if r.error is None:
+                            tag_db[name].append((ts, r.value))
+                    n += 1
+                    if n % 10 == 0:
+                        snapshot = {k: tag_db[k][-1][1] for k in P1_TAGS if tag_db[k]}
+                        print(f"    [poll {n:4d}] {snapshot}")
+                except Exception as e:
+                    print(f"    [!] Poll error: {e}")
+                time.sleep(interval)
+    except PycommException as e:
+        print(f"[-] Connection lost: {e}")
+    print(f"[+] {n} poll cycles, {sum(len(v) for v in tag_db.values())} total samples")
+
+
 def main():
-    parser = argparse.ArgumentParser(
-        description='Phase 0: SWaT Modbus Recon & Database Builder')
-    parser.add_argument('--subnet',   default='192.168.1.0/24',
-                        help='Subnet to scan (NMAP)')
-    parser.add_argument('--iface',    default='eth0',
-                        help='Network interface to sniff on')
-    parser.add_argument('--plc-ip',   default='',
-                        help='PLC1 IP (auto-detected if blank)')
-    parser.add_argument('--hmi-ip',   default='',
-                        help='HMI IP (auto-detected if blank)')
-    parser.add_argument('--duration', type=int, default=1800,
-                        help='Sniff duration in seconds (default: 1800 = 30min)')
-    parser.add_argument('--pcap-out', default='swat_capture.pcap',
-                        help='Output pcap file')
-    parser.add_argument('--db-out',   default='modbus_db.pkl',
-                        help='Output request-response database file')
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--subnet',   default='192.168.1.0/24')
+    ap.add_argument('--plc-ip',   default=None, help='Skip scan, use this IP directly')
+    ap.add_argument('--iface',    default='eth0')
+    ap.add_argument('--duration', type=int, default=1800, help='Sniff/poll duration in seconds')
+    ap.add_argument('--db',       default='enip_db.pkl')
+    ap.add_argument('--pcap',     default='swat_capture.pcap')
+    ap.add_argument('--no-sniff', action='store_true')
+    args = ap.parse_args()
 
     print("=" * 60)
-    print("  SWaT P1 Attack — Phase 0: Reconnaissance")
-    print("  Based on Alsabbagh et al., IEEE CCNC 2023")
+    print("  SWaT Phase 0  —  EtherNet/IP Recon (Allen-Bradley)")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    # Step 1: NMAP
-    devices = run_nmap_recon(args.subnet)
-
-    plc_ip = args.plc_ip
-    hmi_ip = args.hmi_ip
-
-    if not plc_ip and devices:
-        plc_ip = list(devices.keys())[0]
-        print(f"[*] Auto-selected PLC IP: {plc_ip}")
-
-    if not plc_ip:
-        print("[!] No PLC IP found. Specify with --plc-ip")
+    plc_hosts = [args.plc_ip] if args.plc_ip else scan_enip_hosts(args.subnet)
+    if not plc_hosts:
         return
 
-    # Step 2: Sniff
-    db = sniff_and_build_db(
-        iface=args.iface,
-        plc_ip=plc_ip,
-        hmi_ip=hmi_ip,
-        duration=args.duration,
-        pcap_out=args.pcap_out,
-        db_out=args.db_out,
-    )
+    recon_results = [read_plc_identity(ip) for ip in plc_hosts]
 
-    # Save device info
-    meta = {
-        'timestamp': datetime.now().isoformat(),
-        'devices':   devices,
-        'plc_ip':    plc_ip,
-        'hmi_ip':    hmi_ip,
-        'pairs':     len(db.pairs),
-    }
+    # Sniff in background, poll in foreground
+    if not args.no_sniff:
+        t = threading.Thread(target=sniff_thread_fn,
+                             args=(args.iface, args.duration, args.pcap), daemon=True)
+        t.start()
+
+    poll_tags(plc_hosts[0], args.duration)
+
+    if not args.no_sniff:
+        t.join()
+
+    # Save outputs
+    with open(args.db, 'wb') as f:
+        pickle.dump(dict(tag_db), f)
+    print(f"\n[+] Tag DB saved: {args.db}  ({len(tag_db)} tags)")
+
+    for r in recon_results:
+        for v in r.get('tags', {}).values():
+            v['value'] = str(v.get('value'))
     with open('recon_results.json', 'w') as f:
-        json.dump(meta, f, indent=2)
-    print("\n[*] Recon metadata → recon_results.json")
-    print("[*] Phase 0 complete. Run phase1_inject.py next.\n")
+        json.dump(recon_results, f, indent=2)
+    print(f"[+] Recon JSON saved: recon_results.json")
 
+    print("\n[*] Tag value ranges observed:")
+    for name, samples in tag_db.items():
+        vals = [v for _, v in samples if v is not None]
+        if vals:
+            try:    print(f"    {name:8s}: min={min(vals):.3f}  max={max(vals):.3f}  n={len(vals)}")
+            except: print(f"    {name:8s}: {vals[:3]}  n={len(vals)}")
 
 if __name__ == '__main__':
-    if os.geteuid() != 0:
-        print("[!] Must run as root for raw socket access.")
-        exit(1)
     main()

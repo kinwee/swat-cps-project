@@ -1,268 +1,173 @@
+#!/usr/bin/env python3
 """
-autoencoder_detector.py — SWaT Reconstruction Autoencoder Anomaly Detector (Layer 2)
+autoencoder_detector.py  —  Reconstruction-based ML Anomaly Detector
+Target: Allen-Bradley ControlLogix PLC1 via EtherNet/IP (pycomm3)
 
-Trains an LSTM/dense autoencoder on normal SWaT sensor data and flags anomalies
-based on reconstruction MSE exceeding a learned threshold.
+Modes:
+  train   — train autoencoder on SWaT normal CSV
+  monitor — live anomaly detection by reading tags from PLC1
+
+Writes /tmp/ae_flag (0 or 1) for fusion.py.
 
 Usage:
-    # Train:
-    python3 autoencoder_detector.py train --data swat_normal.csv --epochs 50 --save ae_model.pt
-
-    # Monitor live (inference):
-    sudo python3 autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model ae_model.pt
-
-Output:
-    - Console anomaly alerts
-    - ae_scores.json — rolling MSE scores
-    - /tmp/ae_flag — shared flag read by fusion.py (0=normal, 1=anomaly)
-
-Architecture:
-    Input: sliding window of W=30 cycles × N features (flattened)
-    Encoder: Linear(W×N → 64) → ReLU → Linear(64 → 32) → ReLU → Linear(32 → 8)
-    Decoder: Linear(8 → 32) → ReLU → Linear(32 → 64) → ReLU → Linear(64 → W×N)
-    Threshold: 95th percentile of training reconstruction errors
-
-Author: SWaT CPS Security Project Team, SUTD 51.508
+  python3 autoencoder_detector.py train --data swat_normal.csv --save ae_model.pt
+  python3 autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model ae_model.pt
 """
 
-import argparse
-import json
-import os
-import time
-import logging
-from collections import deque
-from datetime import datetime
-
+import argparse, time, sys
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
+from datetime import datetime
+from pycomm3 import LogixDriver, PycommException
 
-from pymodbus.client import ModbusTcpClient
-
-# ── Logging ───────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [AE] %(levelname)s %(message)s"
-)
-log = logging.getLogger("autoencoder")
-
-# ── Config ────────────────────────────────────────────────────────────────────
-WINDOW_SIZE   = 30      # cycles per input window
-LATENT_DIM    = 8
-HIDDEN_DIM    = 64
-THRESHOLD_PCT = 95      # percentile for anomaly threshold
-FEATURES      = ["FIT101", "LIT101", "FIT201"]   # extend with all sensors
-N_FEATURES    = len(FEATURES)
-
-FLAG_PATH  = "/tmp/ae_flag"
-SCORE_LOG  = "ae_scores.json"
-
-# Modbus register map (analog sensors, scaled ×100)
-SENSOR_REGS = {
-    "FIT101": 2,
-    "LIT101": 1,
-    "FIT201": 3,
+FEATURES  = ['LIT101', 'FIT101']
+WINDOW    = 10
+TAG_PATHS = {
+    'LIT101': 'HMI_LIT101:I.Data',
+    'FIT101': 'HMI_FIT101:I.Data',
 }
 
 
-# ── Model ─────────────────────────────────────────────────────────────────────
 class Autoencoder(nn.Module):
-    def __init__(self, input_dim, latent_dim=LATENT_DIM, hidden_dim=HIDDEN_DIM):
+    def __init__(self, input_dim, latent_dim=8):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim // 2, latent_dim),
+            nn.Linear(input_dim, 32), nn.ReLU(),
+            nn.Linear(32, 16),        nn.ReLU(),
+            nn.Linear(16, latent_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim // 2, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, input_dim),
+            nn.Linear(latent_dim, 16), nn.ReLU(),
+            nn.Linear(16, 32),         nn.ReLU(),
+            nn.Linear(32, input_dim)
         )
-
     def forward(self, x):
         return self.decoder(self.encoder(x))
 
 
-def mse(x, x_hat):
-    return float(((x - x_hat) ** 2).mean())
+def train(data_path, save_path, epochs, window):
+    print(f"[*] Loading {data_path}...")
+    df = pd.read_csv(data_path)
+    feat_cols = [c for c in FEATURES if c in df.columns]
+    if not feat_cols:
+        print(f"[!] Features {FEATURES} not found in CSV. Columns: {list(df.columns[:15])}")
+        sys.exit(1)
 
+    data = df[feat_cols].dropna().values.astype(np.float32)
+    mu, sigma = data.mean(0), data.std(0) + 1e-8
+    norm = (data - mu) / sigma
 
-# ── Training ──────────────────────────────────────────────────────────────────
-def train(args):
-    import pandas as pd
-    from sklearn.preprocessing import MinMaxScaler
+    X = np.stack([norm[i:i+window].flatten() for i in range(len(norm)-window)])
+    X_t = torch.tensor(X)
+    input_dim = X.shape[1]
 
-    log.info(f"Loading data from {args.data}")
-    df = pd.read_csv(args.data)
-    data = df[FEATURES].dropna().values.astype(np.float32)
+    ae = Autoencoder(input_dim)
+    opt = torch.optim.Adam(ae.parameters(), lr=1e-3)
+    loss_fn = nn.MSELoss()
 
-    scaler = MinMaxScaler()
-    data = scaler.fit_transform(data)
+    print(f"[*] Training  epochs={epochs}  input_dim={input_dim}  features={feat_cols}")
+    for ep in range(1, epochs+1):
+        ae.train()
+        opt.zero_grad()
+        loss = loss_fn(ae(X_t), X_t)
+        loss.backward(); opt.step()
+        if ep % 20 == 0:
+            print(f"    Epoch {ep:4d}/{epochs}  loss={loss.item():.6f}")
 
-    # Build sliding windows
-    windows = np.array([
-        data[i:i + WINDOW_SIZE].flatten()
-        for i in range(len(data) - WINDOW_SIZE)
-    ], dtype=np.float32)
-
-    X = torch.tensor(windows)
-    loader = DataLoader(TensorDataset(X), batch_size=256, shuffle=True)
-
-    input_dim = WINDOW_SIZE * N_FEATURES
-    model = Autoencoder(input_dim)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.MSELoss()
-
-    log.info(f"Training autoencoder for {args.epochs} epochs...")
-    for epoch in range(args.epochs):
-        total_loss = 0.0
-        for (batch,) in loader:
-            out = model(batch)
-            loss = criterion(out, batch)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        if (epoch + 1) % 10 == 0:
-            log.info(f"  Epoch {epoch+1}/{args.epochs}  loss={total_loss/len(loader):.6f}")
-
-    # Compute threshold on training data
-    model.eval()
+    # Compute threshold = 95th percentile of training reconstruction errors
+    ae.eval()
     with torch.no_grad():
-        recon = model(X)
-        errors = ((X - recon) ** 2).mean(dim=1).numpy()
-    threshold = float(np.percentile(errors, THRESHOLD_PCT))
-    log.info(f"Anomaly threshold ({THRESHOLD_PCT}th pct): {threshold:.6f}")
+        errors = ((ae(X_t) - X_t) ** 2).mean(1).numpy()
+    threshold = float(np.percentile(errors, 95))
+    print(f"[+] Threshold (95th pct): {threshold:.6f}")
 
-    # Save
-    import pickle
-    checkpoint = {
-        "model_state": model.state_dict(),
-        "input_dim": input_dim,
-        "threshold": threshold,
-        "scaler": scaler,
-        "features": FEATURES,
-        "window_size": WINDOW_SIZE,
-    }
-    torch.save(checkpoint, args.save)
-    log.info(f"Model saved to {args.save}")
+    torch.save({'state': ae.state_dict(), 'input_dim': input_dim,
+                'mu': mu, 'sigma': sigma, 'window': window,
+                'feat_cols': feat_cols, 'threshold': threshold}, save_path)
+    print(f"[+] Model saved: {save_path}")
 
 
-# ── Live Monitoring ───────────────────────────────────────────────────────────
-def monitor(args):
-    log.info(f"Loading model from {args.model}")
-    ckpt = torch.load(args.model, weights_only=False)
-    model = Autoencoder(ckpt["input_dim"])
-    model.load_state_dict(ckpt["model_state"])
-    model.eval()
-    threshold = ckpt["threshold"]
-    scaler    = ckpt["scaler"]
-    log.info(f"Anomaly threshold: {threshold:.6f}")
+def monitor(plc_ip, model_path, flag_file, interval):
+    print(f"[*] Loading model: {model_path}")
+    ckpt = torch.load(model_path, map_location='cpu')
+    ae = Autoencoder(ckpt['input_dim']); ae.load_state_dict(ckpt['state']); ae.eval()
+    mu, sigma   = ckpt['mu'], ckpt['sigma']
+    window      = ckpt['window']
+    feat_cols   = ckpt['feat_cols']
+    threshold   = ckpt['threshold']
+    tag_paths   = [TAG_PATHS[f] for f in feat_cols if f in TAG_PATHS]
 
-    client = ModbusTcpClient(args.plc_ip, port=args.plc_port)
-    if not client.connect():
-        log.error(f"Cannot connect to {args.plc_ip}:{args.plc_port}")
-        return
+    print(f"[*] Monitoring PLC {plc_ip}  threshold={threshold:.6f}  features={feat_cols}")
+    history = []
+    cycle   = 0
 
-    buffer = deque(maxlen=WINDOW_SIZE)
-    score_log = []
-    consecutive = 0
+    while True:
+        try:
+            with LogixDriver(plc_ip) as plc:
+                while True:
+                    results = plc.read(*tag_paths)
+                    if not isinstance(results, list):
+                        results = [results]
+                    vals = np.array([r.value if r.error is None else 0.0
+                                     for r in results], dtype=np.float32)
+                    norm_vals = (vals - mu) / sigma
+                    history.append(norm_vals)
+                    if len(history) > window:
+                        history = history[-window:]
 
-    log.info("Monitoring live sensor stream...")
-    try:
-        while True:
-            row = []
-            ok = True
-            for feat in FEATURES:
-                addr = SENSOR_REGS.get(feat)
-                rr = client.read_holding_registers(addr, count=1, slave=1)
-                if rr.isError():
-                    ok = False
-                    break
-                row.append(rr.registers[0] / 100.0)
+                    ae_flag = 0
+                    mse     = None
+                    if len(history) == window:
+                        x = torch.tensor(np.array(history).flatten(), dtype=torch.float32).unsqueeze(0)
+                        with torch.no_grad():
+                            recon = ae(x)
+                            mse = float(((recon - x) ** 2).mean())
+                        ae_flag = 1 if mse > threshold else 0
 
-            if not ok:
-                log.warning("Sensor read error — skipping cycle")
-                time.sleep(args.interval)
-                continue
+                    with open(flag_file, 'w') as f:
+                        f.write(str(ae_flag))
 
-            buffer.append(row)
+                    cycle += 1
+                    ts = datetime.now().strftime('%H:%M:%S')
+                    if ae_flag:
+                        print(f"[{ts}] cycle={cycle:5d}  *** AE ANOMALY ***  "
+                              f"MSE={mse:.6f} > threshold={threshold:.6f}")
+                    elif cycle % 10 == 0:
+                        mse_str = f"{mse:.6f}" if mse is not None else "warming up"
+                        print(f"[{ts}] cycle={cycle:5d}  OK  MSE={mse_str}  "
+                              f"vals={dict(zip(feat_cols, vals.tolist()))}")
 
-            if len(buffer) < WINDOW_SIZE:
-                time.sleep(args.interval)
-                continue
-
-            window = np.array(list(buffer), dtype=np.float32)
-            window_scaled = scaler.transform(window).flatten()
-            x = torch.tensor(window_scaled).unsqueeze(0)
-
-            with torch.no_grad():
-                x_hat = model(x)
-            score = mse(x, x_hat)
-
-            is_anomaly = score > threshold
-            flag = 1 if is_anomaly else 0
-
-            with open(FLAG_PATH, "w") as f:
-                f.write(str(flag))
-
-            entry = {
-                "timestamp": datetime.utcnow().isoformat(),
-                "mse": round(score, 6),
-                "threshold": round(threshold, 6),
-                "anomaly": is_anomaly,
-            }
-            score_log.append(entry)
-
-            if is_anomaly:
-                consecutive += 1
-                log.warning(f"ANOMALY DETECTED  MSE={score:.6f} > threshold={threshold:.6f}  (consecutive={consecutive})")
-            else:
-                consecutive = 0
-                log.debug(f"Normal  MSE={score:.6f}")
-
-            if len(score_log) % 60 == 0:
-                with open(SCORE_LOG, "w") as f:
-                    json.dump(score_log[-500:], f, indent=2)
-
-            time.sleep(args.interval)
-
-    except KeyboardInterrupt:
-        log.info("Stopping autoencoder monitor.")
-    finally:
-        client.close()
-        with open(SCORE_LOG, "w") as f:
-            json.dump(score_log, f, indent=2)
+                    time.sleep(interval)
+        except PycommException as e:
+            print(f"[!] EtherNet/IP error: {e} — reconnecting in 3s...")
+            with open(flag_file, 'w') as f:
+                f.write('0')
+            time.sleep(3)
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="SWaT Autoencoder Anomaly Detector")
-    sub = parser.add_subparsers(dest="cmd", required=True)
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest='mode', required=True)
 
-    t = sub.add_parser("train")
-    t.add_argument("--data",   required=True, help="Path to SWaT normal CSV")
-    t.add_argument("--epochs", type=int, default=50)
-    t.add_argument("--save",   default="ae_model.pt")
+    tr = sub.add_parser('train')
+    tr.add_argument('--data',   required=True)
+    tr.add_argument('--save',   default='ae_model.pt')
+    tr.add_argument('--epochs', type=int, default=100)
+    tr.add_argument('--window', type=int, default=WINDOW)
 
-    m = sub.add_parser("monitor")
-    m.add_argument("--plc-ip",   required=True)
-    m.add_argument("--plc-port", type=int, default=502)
-    m.add_argument("--model",    default="ae_model.pt")
-    m.add_argument("--interval", type=float, default=1.0)
+    mo = sub.add_parser('monitor')
+    mo.add_argument('--plc-ip',   required=True)
+    mo.add_argument('--model',    default='ae_model.pt')
+    mo.add_argument('--flag',     default='/tmp/ae_flag')
+    mo.add_argument('--interval', type=float, default=1.0)
 
-    args = parser.parse_args()
-    if args.cmd == "train":
-        train(args)
+    args = ap.parse_args()
+    if args.mode == 'train':
+        train(args.data, args.save, args.epochs, args.window)
     else:
-        monitor(args)
+        monitor(args.plc_ip, args.model, args.flag, args.interval)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
