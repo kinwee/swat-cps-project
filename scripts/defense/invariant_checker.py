@@ -51,6 +51,10 @@ def check_invariants(state):
         violations.append(('I-7', f'P101=OFF MV101=CLOSED but FIT101={fit:.3f} > 0'))
     if fit is not None and fit > 2.0:
         violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
+    # I-9: MV101=CLOSED and P101=OFF while level is in normal operating range
+    # This is the key signature of a Phase 1 attack — both stopped simultaneously
+    if mv_closed and not p1 and lit is not None and 300 < lit < 850:
+        violations.append(('I-9', f'MV101=CLOSED and P101=OFF with LIT101={lit:.1f}mm in normal range'))
     return violations
 
 
