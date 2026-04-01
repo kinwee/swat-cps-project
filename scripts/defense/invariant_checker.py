@@ -15,8 +15,8 @@ READ_TAGS = [
     'HMI_LIT101.Pv',
     'AI_FIT_101_FLOW',
     'HMI_MV101.Cmd',
-    'HMI_P101.Cmd',
-    'HMI_P102.Cmd',
+    'HMI_P101.Auto',
+    'HMI_P102.Auto',
 ]
 
 LIT_HH  = 800.0
@@ -28,14 +28,14 @@ def check_invariants(state):
     lit = state.get('HMI_LIT101.Pv')
     fit = state.get('AI_FIT_101_FLOW')
     mv  = state.get('HMI_MV101.Cmd')      # 2=OPEN, 1=CLOSED
-    p1  = state.get('HMI_P101.Cmd')      # 2=ON, 1=OFF
-    p2  = state.get('HMI_P102.Cmd')
+    p1  = state.get('HMI_P101.Auto')     # True=auto/running, False=manual/off
+    p2  = state.get('HMI_P102.Auto')
 
     violations = []
     mv_open  = (mv == 2) if mv is not None else None
     mv_closed= (mv == 1) if mv is not None else None
-    p1_on    = (p1 == 2) if p1 is not None else None
-    p2_on    = (p2 == 2) if p2 is not None else None
+    p1_on    = (p1 == True) if p1 is not None else None   # Auto=True → PLC running P101
+    p2_on    = (p2 == True) if p2 is not None else None   # Auto=True → PLC running P102
 
     if mv_open and fit is not None and fit < FIT_MIN:
         violations.append(('I-1', f'MV101=OPEN but FIT101={fit:.3f} < {FIT_MIN}'))
@@ -55,8 +55,12 @@ def check_invariants(state):
         violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
     # I-9: MV101=CLOSED and P101=OFF while level is in normal operating range
     # This is the key signature of a Phase 1 attack — both stopped simultaneously
-    if mv_closed and not p1_on and lit is not None and 300 < lit < 850:
-        violations.append(('I-9', f'MV101=CLOSED and P101=OFF with LIT101={lit:.1f}mm in normal range'))
+    # I-9: MV101=CLOSED and P101.Auto=False simultaneously in normal range
+    #       Auto=False means hacker has taken manual control of P101
+    mv_auto_false = (state.get('HMI_MV101.Cmd') == 1)  # valve closed (manually commanded)
+    p1_manual     = (p1 == False)                        # pump taken out of auto = hacker control
+    if mv_auto_false and p1_manual and lit is not None and 300 < lit < 850:
+        violations.append(('I-9', f'MV101=CLOSED and P101.Auto=False (manual override) with LIT101={lit:.1f}mm — HMI compromise signature'))
     return violations
 
 
