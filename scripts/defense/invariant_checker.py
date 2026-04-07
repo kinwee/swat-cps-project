@@ -55,12 +55,11 @@ def check_invariants(state):
         violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
     # I-9: MV101=CLOSED and P101=OFF while level is in normal operating range
     # This is the key signature of a Phase 1 attack — both stopped simultaneously
-    # I-9: MV101=CLOSED and P101.Auto=False simultaneously in normal range
-    #       Auto=False means hacker has taken manual control of P101
-    mv_auto_false = (state.get('HMI_MV101.Cmd') == 1)  # valve closed (manually commanded)
-    p1_manual     = (p1 == False)                        # pump taken out of auto = hacker control
-    if mv_auto_false and p1_manual and lit is not None and 300 < lit < 850:
-        violations.append(('I-9', f'MV101=CLOSED and P101.Auto=False (manual override) with LIT101={lit:.1f}mm — HMI compromise signature'))
+    # I-9: MV101=CLOSED AND P101=ON (running) in normal operating range
+    #       Valve closed while pump runs = tank actively draining with no refill
+    #       This is the key Phase 1 attack signature — causes pump cavitation
+    if mv_closed and p1_on and lit is not None and 300 < lit < 850:
+        violations.append(('I-9', f'MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101={lit:.1f}mm — Phase 1 attack signature'))
     return violations
 
 

