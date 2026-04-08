@@ -89,7 +89,7 @@ for cycle in range(5):
     flag = 1 if viols else 0
     attack_flags.append(flag)
     mv_str = 'CLOSED' if state.get('HMI_MV101.Cmd') == 1 else 'OPEN'
-    status = f"⚠  {viols[0]}" if viols else "✓ OK"
+    status = f"⚠  {viols}" if viols else "✓ OK"
     print(f"  [{ts()}] Cycle {cycle+1}: LIT101={lit:.1f}mm  FIT101={fit:.3f}  MV101={mv_str}  inv_flag={flag}  {status}")
     time.sleep(1)
 

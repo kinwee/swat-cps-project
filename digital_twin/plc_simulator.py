@@ -115,11 +115,21 @@ class MockPLC:
         with lock:
             old_val = TAG_STORE.get(tag, 'N/A')
             TAG_STORE[tag] = value
-            # Sync Auto with Cmd so invariant checker sees correct state
+            # Bidirectional Auto/Cmd sync so all scripts see consistent state
+            # Cmd write → sync Auto
             if tag == 'HMI_P101.Cmd':
                 TAG_STORE['HMI_P101.Auto'] = (value == 2)
             if tag == 'HMI_P102.Cmd':
                 TAG_STORE['HMI_P102.Auto'] = (value == 2)
+            if tag == 'HMI_MV101.Cmd':
+                TAG_STORE['HMI_MV101.Auto'] = (value == 2)
+            # Auto write → sync Cmd (Auto=False means manual, set Cmd=1=OFF/CLOSED)
+            if tag == 'HMI_P101.Auto' and value is False:
+                TAG_STORE['HMI_P101.Cmd'] = 1
+            if tag == 'HMI_P102.Auto' and value is False:
+                TAG_STORE['HMI_P102.Cmd'] = 1
+            if tag == 'HMI_MV101.Auto' and value is False:
+                TAG_STORE['HMI_MV101.Cmd'] = 1
             write_log.append((ts, tag, old_val, value))
         print(f"\033[33m  [SIM WRITE {ts}] {tag}: {old_val} → {value}\033[0m", flush=True)
         return MockResult(tag, value)

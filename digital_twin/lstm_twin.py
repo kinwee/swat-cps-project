@@ -190,20 +190,25 @@ def attack_sim(args):
     start = args.attack_start
     dur   = args.attack_duration
 
-    # Simulate attack: zero out MV101 and P101 in the input window
+    # Simulate attack: close MV101, keep P101 ON → tank drains
     data_attack = data.copy()
-    mv_idx = features.index('LIT101.Pv') if 'LIT101.Pv' in features else None
+    lit_idx = features.index('LIT101.Pv') if 'LIT101.Pv' in features else None
+    fit_idx = features.index('FIT101.Pv') if 'FIT101.Pv' in features else None
+
+    # ODE-based attack trajectory (physics model from ode_twin.py)
+    # dL/dt = -Q_out/A_tank when MV101=CLOSED, P101=ON
+    # Q_out ≈ 1.8 L/s, A_tank ≈ 1.5 m² → drop rate ≈ 1.2 mm/s
+    DROP_RATE = 1.8 / 1.5   # mm/s from ODE model
+    if lit_idx is not None:
+        lit_start = data[start, lit_idx]
+        for i in range(start, min(start + dur, len(data_attack))):
+            elapsed = i - start
+            data_attack[i, lit_idx] = max(0, lit_start - DROP_RATE * elapsed)
+            if fit_idx is not None:
+                data_attack[i, fit_idx] = 0.0   # no flow when valve closed
 
     norm_clean  = (data - mu) / sigma
-    norm_attack = data_attack.copy()
-
-    # Force LIT101 trajectory under attack (ODE approximation)
-    if mv_idx is not None:
-        for i in range(start, min(start + dur, len(norm_attack))):
-            decay = (i - start) * 0.003   # ~3mm/s drop rate
-            norm_attack[i, mv_idx] = norm_clean[start, mv_idx] - decay
-
-    norm_attack = (norm_attack - mu) / sigma
+    norm_attack = (data_attack - mu) / sigma
 
     preds_clean  = []
     preds_attack = []
@@ -218,14 +223,16 @@ def attack_sim(args):
     preds_attack = np.array(preds_attack) * sigma + mu
     real_seg     = data[start+window:start+window+len(preds_clean)]
 
-    if mv_idx is None or len(preds_clean) == 0:
+    if lit_idx is None or len(preds_clean) == 0:
         print("[!] Not enough data for attack simulation")
         return
 
     t = np.arange(len(preds_clean))
     fig, axes = plt.subplots(2, 1, figsize=(14, 8), facecolor='#0A0A14')
     fig.suptitle('LSTM Twin: Normal vs Attack-Injected Prediction', color='white', fontsize=13, fontweight='bold')
-    for ax, fi, title in zip(axes, [mv_idx, 1], ['LIT101 (Tank Level)', 'FIT101 (Flow)']):
+    plot_indices = [lit_idx, fit_idx if fit_idx is not None else 1]
+    plot_titles  = ['LIT101 (Tank Level)', 'FIT101 (Flow)']
+    for ax, fi, title in zip(axes, plot_indices, plot_titles):
         ax.set_facecolor('#0D0D1A')
         ax.plot(t, real_seg[:, fi],      color='#00D4FF', lw=1.2, label='Real')
         ax.plot(t, preds_clean[:, fi],   color='#00FF88', lw=1.2, linestyle='--', label='Twin (Normal)')

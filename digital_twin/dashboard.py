@@ -13,7 +13,11 @@ import argparse, os
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('TkAgg')
+try:
+    matplotlib.use('TkAgg')
+except Exception:
+    matplotlib.use('Agg')
+    print("[!] TkAgg not available — using Agg (non-interactive, plots saved to file)")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.image as mpimg
