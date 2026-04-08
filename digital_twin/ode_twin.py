@@ -6,9 +6,10 @@ Physics model for LIT101 (tank level) based on mass balance:
     dL/dt = (Q_in - Q_out) / A_tank
 
 Where:
-    Q_in  = MV101_open × FIT101_max_flow  (inlet flow when valve open)
-    Q_out = P101_on    × pump_flow_rate   (pump outflow)
-    A_tank ≈ 1.5 m² (SWaT P1 tank cross-section)
+    Q_in  = calibrated rise rate from data (mm/s when MV101 open)
+    Q_out = calibrated fall rate from data (mm/s when P101 on)
+    Drift correction (alpha=0.02) prevents accumulation during normal operation
+    Correction disabled during attack → residual = anomaly signal
 
 The twin:
 1. Loads real sensor data from CSV
@@ -29,14 +30,16 @@ import matplotlib.patches as mpatches
 from datetime import datetime
 
 # ── SWaT P1 Physical Parameters ──────────────────────────────────────────────
-A_TANK       = 1.5      # Tank cross-section (m²)
-MAX_FLOW_IN  = 2.0      # Max inlet flow when MV101=OPEN (L/s → mm/s via tank area)
-PUMP_FLOW    = 1.8      # Pump P101 outflow rate (L/s)
-DT           = 1.0      # Timestep (seconds, matches 1Hz dataset)
+DT = 1.0      # Timestep (seconds, matches 1Hz dataset)
 
-# Convert L/s to mm/s using tank area:  1 L = 0.001 m³, A=1.5 m²
-# dL/dt (mm/s) = Q (L/s) × 0.001 / A_tank × 1000  = Q / A_tank × (0.001/0.001) = Q/1.5
-FLOW_TO_MMPS = 1.0 / A_TANK   # mm/s per L/s (approximate)
+# These are estimated from data during calibration — see calibrate_params()
+DEFAULT_RISE_RATE = 0.85   # mm/s when MV101=OPEN, P101=OFF (filling)
+DEFAULT_FALL_RATE = 0.67   # mm/s when MV101=CLOSED, P101=ON (draining)
+
+# Drift correction: blend ODE prediction toward measured value each step
+# 0.0 = pure ODE (diverges), 1.0 = just copy measured (useless)
+# 0.02 gives ~50-step correction half-life while preserving ODE dynamics
+CORRECTION_ALPHA = 0.02
 
 
 def load_data(csv_path):
@@ -50,44 +53,77 @@ def load_data(csv_path):
     return df
 
 
+def calibrate_params(df):
+    """Auto-calibrate rise/fall rates from actual LIT101 data."""
+    lit = df['LIT101.Pv'].values
+    mv  = df['MV101.Status'].values
+    p1  = df['P101.Status'].values
+    dlit = lit[1:] - lit[:-1]
+
+    # Rise rate: when MV101=OPEN(2) and P101=OFF(1) → tank filling
+    fill_mask = (mv[1:] == 2) & (p1[1:] == 1) & (dlit > 0.05)
+    rise_rate = np.median(dlit[fill_mask]) if fill_mask.sum() > 50 else DEFAULT_RISE_RATE
+
+    # Fall rate: when MV101=CLOSED(1) and P101=ON(2) → tank draining
+    drain_mask = (mv[1:] == 1) & (p1[1:] == 2) & (dlit < -0.05)
+    fall_rate = np.median(np.abs(dlit[drain_mask])) if drain_mask.sum() > 50 else DEFAULT_FALL_RATE
+
+    # Net rate when both open/on: use direct FIT101 correlation
+    both_mask = (mv[1:] == 2) & (p1[1:] == 2)
+    if both_mask.sum() > 50:
+        net_rate = np.median(dlit[both_mask])
+    else:
+        net_rate = rise_rate - fall_rate
+
+    print(f"    Calibrated: rise={rise_rate:.3f} mm/s  fall={fall_rate:.3f} mm/s  net={net_rate:.3f} mm/s")
+    return rise_rate, fall_rate, net_rate
+
+
 def simulate_ode(df, attack_start=None, attack_duration=0):
     """
     Simulate LIT101 using ODE driven by MV101 and P101 states.
-    Optionally inject attack: force MV101=CLOSED, P101=OFF from attack_start.
+    Uses data-calibrated rates + drift correction for accuracy.
+    Optionally inject attack: force MV101=CLOSED while P101 stays ON (Phase 1 pattern).
     """
     n = len(df)
-    lit_sim   = np.zeros(n)
-    lit_sim[0] = df['LIT101.Pv'].iloc[0]   # initialise from real value
+    lit_sim    = np.zeros(n)
+    lit_sim[0] = df['LIT101.Pv'].iloc[0]
     residuals  = np.zeros(n)
     attack_mask= np.zeros(n, dtype=bool)
 
-    # Calibrate flow constants from real data
-    # When MV101=OPEN (2) and P101=ON (2): median FIT101 ≈ real Q_in
-    mask_open = (df['MV101.Status'] == 2) & (df['P101.Status'] == 2)
-    if mask_open.sum() > 100:
-        q_in_real = df.loc[mask_open, 'FIT101.Pv'].median()
-        q_in = q_in_real if q_in_real > 0.1 else MAX_FLOW_IN
-    else:
-        q_in = MAX_FLOW_IN
+    rise_rate, fall_rate, net_rate = calibrate_params(df)
 
     for i in range(1, n):
-        # Get actuator states (2=ON/OPEN, 1=OFF/CLOSED)
         mv_open = df['MV101.Status'].iloc[i] == 2
         p1_on   = df['P101.Status'].iloc[i] == 2
 
-        # Inject attack
+        # Inject attack: Phase 1 closes MV101, P101 stays ON → tank drains
+        in_attack = False
         if attack_start and attack_start <= i < attack_start + attack_duration:
-            mv_open = False   # force CLOSED
-            p1_on   = False   # force OFF
+            mv_open = False    # force MV101 CLOSED (no inflow)
+            p1_on   = True     # P101 stays ON (pump keeps draining)
             attack_mask[i] = True
+            in_attack = True
 
-        # ODE: dL/dt = (Q_in - Q_out) / A × unit_conversion
-        flow_in  = q_in  * FLOW_TO_MMPS if mv_open else 0.0
-        flow_out = PUMP_FLOW * FLOW_TO_MMPS if p1_on else 0.0
-        dL = (flow_in - flow_out) * DT
+        # ODE step using calibrated rates
+        if mv_open and p1_on:
+            dL = net_rate * DT
+        elif mv_open and not p1_on:
+            dL = rise_rate * DT
+        elif not mv_open and p1_on:
+            dL = -fall_rate * DT
+        else:  # both off
+            dL = 0.0
 
         lit_sim[i] = np.clip(lit_sim[i-1] + dL, 0, 1200)
-        residuals[i] = df['LIT101.Pv'].iloc[i] - lit_sim[i]
+
+        # Drift correction: gently pull ODE toward measured value
+        # Skip during attack so the divergence is visible as anomaly signal
+        lit_real = df['LIT101.Pv'].iloc[i]
+        if not in_attack:
+            lit_sim[i] += CORRECTION_ALPHA * (lit_real - lit_sim[i])
+
+        residuals[i] = lit_real - lit_sim[i]
 
     return lit_sim, residuals, attack_mask
 
