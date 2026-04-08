@@ -1,9 +1,8 @@
+#!/usr/bin/env python3
 """
-reentry_gate.py — SWaT Invariant-Guided Sensor Re-Entry Gate (Deep Recovery)
+reentry_gate.py — SWaT P1 Invariant-Gated Sensor Re-Entry (Deep Recovery)
 
-After shallow recovery (safe state + failover), this script manages the
-controlled sequential re-entry of sensors into active control.
-
+After shallow recovery completes, sensors may still be compromised.
 For each sensor, it:
     1. Reads current sensor value
     2. Compares against ODE/SSE prediction
@@ -12,7 +11,7 @@ For each sensor, it:
 
 This prevents an attacker from resuming spoofed values after recovery.
 
-Reference: Proposed invariant-guided reconstruction (this project, SUTD 51.508)
+Protocol: EtherNet/IP via pylogix (Allen-Bradley ControlLogix)
 
 Usage:
     python3 reentry_gate.py --plc-ip 192.168.1.10 [--ode-mode] [--sse-mode]
@@ -41,9 +40,9 @@ logging.basicConfig(
 log = logging.getLogger("reentry_gate")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-ACCEPT_CYCLES   = 5       # clean invariant cycles required for acceptance
-TIMEOUT_PER_SENSOR = 30   # seconds before declaring sensor failed reentry
-RESIDUAL_LIMIT  = 30.0    # mm — max deviation from ODE/SSE prediction
+ACCEPT_CYCLES      = 5       # clean invariant cycles required for acceptance
+TIMEOUT_PER_SENSOR = 30      # seconds before declaring sensor failed reentry
+RESIDUAL_LIMIT     = 30.0    # mm — max deviation from ODE/SSE prediction
 
 ODE_STATE_PATH  = "/tmp/ode_trusted"
 SSE_STATE_PATH  = "/tmp/sse_state"
@@ -53,61 +52,92 @@ OUTPUT_FILE     = "reentry_log.json"
 # P1 sensor re-entry order (most critical first)
 SENSOR_REENTRY_ORDER = ["FIT101", "LIT101", "FIT201"]
 
-REGS = {
-    "FIT101": ("holding", 2),
-    "LIT101": ("holding", 1),
-    "FIT201": ("holding", 3),
-    "MV101":  ("coil",    1),
-    "P101":   ("coil",    2),
-    "P102":   ("coil",    3),
+# Real SWaT P1 tag names (pylogix / EtherNet/IP)
+TAGS = {
+    "LIT101":  "HMI_LIT101.Pv",         # REAL (mm)
+    "FIT101":  "AI_FIT_101_FLOW",        # REAL (L/s)
+    "FIT201":  "HMI_FIT201.Pv",          # REAL (L/s)
+    "MV101":   "HMI_MV101.Cmd",          # INT (1=CLOSE, 2=OPEN)
+    "P101":    "HMI_P101.Auto",          # BOOL
+    "P102":    "HMI_P102.Auto",          # BOOL
 }
 
 # P1 invariant thresholds (same as invariant_checker.py)
-LIT_HH = 1000.0
-LIT_LL = 250.0
+LIT_HH       = 1000.0
+LIT_LL       = 250.0
 FIT_MIN_FLOW = 0.5
 FIT_NO_FLOW  = 0.1
 
 
-def read_sensor(client, name):
-    rtype, addr = REGS[name]
-    if rtype == "coil":
-        rr = client.read_coils(addr, count=1, slave=1)
-        return int(rr.bits[0]) if not rr.isError() else None
+def read_sensor(plc, name):
+    """Read a single sensor/actuator value via pylogix."""
+    tag = TAGS.get(name)
+    if not tag:
+        log.warning(f"  Unknown sensor: {name}")
+        return None
+    ret = plc.Read(tag)
+    if ret.Status == "Success":
+        return ret.Value
     else:
-        rr = client.read_holding_registers(addr, count=1, slave=1)
-        return rr.registers[0] / 100.0 if not rr.isError() else None
+        log.warning(f"  Failed to read {tag}: {ret.Status}")
+        return None
 
 
-def check_p1_invariants(client):
+def read_all_p1(plc):
+    """Read all P1 tags for invariant checking."""
+    state = {}
+    for name, tag in TAGS.items():
+        ret = plc.Read(tag)
+        if ret.Status == "Success":
+            state[name] = ret.Value
+        else:
+            state[name] = None
+    return state
+
+
+def check_p1_invariants(plc):
     """Returns list of violated invariant IDs (empty = all pass)."""
-    mv  = read_sensor(client, "MV101")
-    p1  = read_sensor(client, "P101")
-    p2  = read_sensor(client, "P102")
-    lit = read_sensor(client, "LIT101")
-    fit = read_sensor(client, "FIT101")
-
-    if None in (mv, p1, p2, lit, fit):
-        return ["READ_ERROR"]
-
+    state = read_all_p1(plc)
     violations = []
-    if mv == 1 and fit < FIT_MIN_FLOW:
-        violations.append("INV-1")
-    if mv == 0 and fit > FIT_NO_FLOW:
-        violations.append("INV-2")
-    if lit > LIT_HH and (p1 == 1 or p2 == 1):
-        violations.append("INV-4")
-    if lit < LIT_LL and mv == 0:
-        violations.append("INV-5")
-    if p1 == 1 and p2 == 1:
-        violations.append("INV-6")
-    if not (LIT_LL <= lit <= LIT_HH):
-        violations.append("INV-7")
+
+    lit101 = state.get("LIT101")
+    fit101 = state.get("FIT101")
+    mv101  = state.get("MV101")      # 1=CLOSE, 2=OPEN
+    p101   = state.get("P101")       # BOOL
+    p102   = state.get("P102")       # BOOL
+
+    if lit101 is None or fit101 is None:
+        violations.append("DATA_MISSING")
+        return violations
+
+    # I-1: LIT101 within safe bounds
+    if lit101 > LIT_HH or lit101 < LIT_LL:
+        violations.append("I-1")
+
+    # I-2: If MV101 is OPEN (Cmd=2), FIT101 should show flow
+    if mv101 == 2 and fit101 < FIT_NO_FLOW:
+        violations.append("I-2")
+
+    # I-3: If MV101 is CLOSED (Cmd=1), FIT101 should be near zero
+    if mv101 == 1 and fit101 > FIT_MIN_FLOW:
+        violations.append("I-3")
+
+    # I-4: If P101 is ON and MV101 is CLOSED, LIT101 should be dropping
+    # (can only check over time — skip for single-cycle check)
+
+    # I-5: LIT101 high-high → MV101 should be CLOSED
+    if lit101 > LIT_HH and mv101 == 2:
+        violations.append("I-5")
+
+    # I-6: LIT101 low-low → P101 should be OFF
+    if lit101 < LIT_LL and p101:
+        violations.append("I-6")
 
     return violations
 
 
-def get_ode_trusted():
+def read_ode_trust():
+    """Read ODE trust flag from /tmp/ode_trusted."""
     try:
         with open(ODE_STATE_PATH) as f:
             return int(f.read().strip()) == 1
@@ -115,7 +145,8 @@ def get_ode_trusted():
         return False
 
 
-def get_sse_estimate():
+def read_sse_estimate():
+    """Read SSE state estimate from /tmp/sse_state."""
     try:
         with open(SSE_STATE_PATH) as f:
             return float(f.read().strip())
@@ -123,109 +154,105 @@ def get_sse_estimate():
         return None
 
 
-def accept_sensor(client, sensor_name, use_ode=False, use_sse=False):
+def accept_sensor(plc, sensor_name, use_ode, use_sse):
     """
-    Attempt to accept a sensor. Returns True if accepted, False if timeout.
+    Try to accept a single sensor. Returns True if accepted within timeout.
+    Requires ACCEPT_CYCLES consecutive clean invariant cycles.
     """
-    log.info(f"  Evaluating re-entry: {sensor_name}")
-    clean_count = 0
-    t_end = time.time() + TIMEOUT_PER_SENSOR
-    decisions = []
+    log.info(f"  Attempting re-entry for {sensor_name}...")
+    clean = 0
+    t_start = time.time()
 
-    while time.time() < t_end:
-        val = read_sensor(client, sensor_name)
-        violations = check_p1_invariants(client)
+    while clean < ACCEPT_CYCLES and (time.time() - t_start) < TIMEOUT_PER_SENSOR:
+        # Check invariants
+        violations = check_p1_invariants(plc)
+        if violations:
+            clean = 0
+            log.warning(f"    {sensor_name}: invariant violations {violations} — reset")
+            time.sleep(1.0)
+            continue
 
-        # Additional cross-check with ODE/SSE if available
-        cross_ok = True
+        # Optional: check ODE trust
+        if use_ode and not read_ode_trust():
+            clean = 0
+            log.warning(f"    {sensor_name}: ODE says untrusted — reset")
+            time.sleep(1.0)
+            continue
+
+        # Optional: check SSE residual for LIT101
         if use_sse and sensor_name == "LIT101":
-            sse_est = get_sse_estimate()
-            if sse_est is not None and val is not None:
-                residual = abs(val - sse_est)
+            sse_est = read_sse_estimate()
+            measured = read_sensor(plc, "LIT101")
+            if sse_est is not None and measured is not None:
+                residual = abs(sse_est - measured)
                 if residual > RESIDUAL_LIMIT:
-                    cross_ok = False
-                    log.warning(f"    SSE residual {residual:.1f}mm > limit for {sensor_name}")
+                    clean = 0
+                    log.warning(f"    {sensor_name}: SSE residual {residual:.1f}mm > {RESIDUAL_LIMIT}mm — reset")
+                    time.sleep(1.0)
+                    continue
 
-        if use_ode and sensor_name == "LIT101":
-            if not get_ode_trusted():
-                cross_ok = False
-                log.warning(f"    ODE flagged {sensor_name} as untrusted")
-
-        cycle_ok = (len(violations) == 0) and cross_ok
-
-        if cycle_ok:
-            clean_count += 1
-            log.info(f"    Clean cycle {clean_count}/{ACCEPT_CYCLES} for {sensor_name}")
-        else:
-            clean_count = 0
-            log.warning(f"    Reset: violations={violations} cross_ok={cross_ok}")
-
-        decisions.append({
-            "timestamp": datetime.utcnow().isoformat(),
-            "sensor":    sensor_name,
-            "value":     round(val, 2) if val is not None else None,
-            "violations": violations,
-            "cross_ok":   cross_ok,
-            "clean_count": clean_count,
-        })
-
-        if clean_count >= ACCEPT_CYCLES:
-            log.info(f"  ✓ {sensor_name} ACCEPTED after {clean_count} clean cycles")
-            return True, decisions
-
+        clean += 1
+        log.info(f"    {sensor_name}: clean cycle {clean}/{ACCEPT_CYCLES}")
         time.sleep(1.0)
 
-    log.error(f"  ✗ {sensor_name} FAILED re-entry (timeout {TIMEOUT_PER_SENSOR}s)")
-    return False, decisions
+    if clean >= ACCEPT_CYCLES:
+        log.info(f"  ✓ {sensor_name} ACCEPTED after {time.time()-t_start:.1f}s")
+        return True
+    else:
+        log.error(f"  ✗ {sensor_name} REJECTED — timed out after {TIMEOUT_PER_SENSOR}s")
+        return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SWaT Invariant-Guided Sensor Re-Entry Gate")
+    parser = argparse.ArgumentParser(description="SWaT P1 Sensor Re-Entry Gate")
     parser.add_argument("--plc-ip",   required=True)
-    parser.add_argument("--plc-port", type=int, default=502)
     parser.add_argument("--ode-mode", action="store_true",
-                        help="Cross-check LIT101 with ODE estimator")
+                        help="Require ODE trust before acceptance")
     parser.add_argument("--sse-mode", action="store_true",
-                        help="Cross-check LIT101 with SSE observer")
+                        help="Require SSE residual check for LIT101")
     args = parser.parse_args()
 
-    client = PLC(args.plc_ip, port=args.plc_port)
-    if not client.connect():
-        log.error(f"Cannot connect to {args.plc_ip}:{args.plc_port}")
-        return
+    log.info("=" * 60)
+    log.info("  SWaT P1 Sensor Re-Entry Gate")
+    log.info(f"  PLC: {args.plc_ip}")
+    log.info(f"  ODE mode: {args.ode_mode}  |  SSE mode: {args.sse_mode}")
+    log.info("=" * 60)
 
-    log.info("═══════════════════════════════════════════════")
-    log.info("  SENSOR RE-ENTRY GATE — Deep Recovery")
-    log.info("═══════════════════════════════════════════════")
+    results = {}
 
-    full_log = []
-    all_accepted = True
+    with PLC() as plc:
+        plc.IPAddress = args.plc_ip
 
-    try:
+        # Verify connection
+        test = plc.Read(TAGS["LIT101"])
+        if test.Value is None:
+            log.error(f"Cannot read LIT101 from {args.plc_ip}: {test.Status}")
+            return
+
+        log.info(f"Connected. LIT101 = {test.Value:.1f} mm")
+
         for sensor in SENSOR_REENTRY_ORDER:
-            accepted, decisions = accept_sensor(
-                client, sensor,
-                use_ode=args.ode_mode,
-                use_sse=args.sse_mode,
-            )
-            full_log.extend(decisions)
-            if not accepted:
-                all_accepted = False
-                log.error(f"Re-entry FAILED for {sensor}. Halting.")
-                break
-    finally:
-        client.close()
+            accepted = accept_sensor(plc, sensor, args.ode_mode, args.sse_mode)
+            results[sensor] = {
+                "accepted": accepted,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
 
+    # Write completion flag
+    all_accepted = all(r["accepted"] for r in results.values())
     with open(REENTRY_DONE, "w") as f:
         f.write("1" if all_accepted else "0")
 
+    # Save log
     with open(OUTPUT_FILE, "w") as f:
-        json.dump(full_log, f, indent=2)
+        json.dump(results, f, indent=2)
 
     if all_accepted:
-        log.info("ALL SENSORS ACCEPTED — system returning to normal control")
+        log.info("*** ALL SENSORS ACCEPTED — re-entry complete ***")
     else:
-        log.error("RE-ENTRY INCOMPLETE — manual inspection required")
+        failed = [s for s, r in results.items() if not r["accepted"]]
+        log.error(f"*** RE-ENTRY INCOMPLETE — failed: {failed} ***")
+        log.error("    Manual inspection required before resuming normal control.")
 
 
 if __name__ == "__main__":

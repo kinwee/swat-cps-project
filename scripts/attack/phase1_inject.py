@@ -34,8 +34,10 @@ ATTACK_CMDS = [
 
 # Safe state to restore on exit
 SAFE_CMDS = [
+    ('HMI_MV101.Auto', False),   # take out of auto first
     ('HMI_MV101.Cmd',  2),       # 2=OPEN inlet valve
     ('HMI_MV101.Auto', True),    # restore auto
+    ('HMI_P101.Auto',  False),   # take out of auto first
     ('HMI_P101.Cmd',   2),       # 2=ON start pump
     ('HMI_P101.Auto',  True),    # restore auto
 ]
