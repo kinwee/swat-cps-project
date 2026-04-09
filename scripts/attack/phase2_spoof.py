@@ -30,7 +30,7 @@ FEATURES  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']
 # Simulation tag paths for writing spoofed values
 SIM_TAGS = {
     'HMI_LIT101.Pv':    ('HMI_LIT101.Sim',    'HMI_LIT101.Sim_PV'),
-    'AI_FIT_101_FLOW':  ('HMI_FIT101.Sim',     'HMI_FIT101.Sim_PV'),
+    'AI_FIT_101_FLOW':  ('AI_FIT_101_FLOW.Sim', 'AI_FIT_101_FLOW.Sim_PV'),
 }
 
 # CSV column names mapping to PLC tag names
