@@ -9,7 +9,7 @@ the .Sim / .Sim_PV tag interface (sensor simulation mode).
 
 Sensor simulation tag pattern (from lab reference script):
   write_tag(ip, 'HMI_LIT101.Sim',    True)   # enable simulation
-  write_tag(ip, 'HMI_LIT101.Sim_PV', 200)    # write spoofed value
+  write_tag(ip, 'HMI_LIT101.Sim_Pv', 200)    # write spoofed value
   write_tag(ip, 'HMI_LIT101.Sim',    False)  # disable (restore)
 
 Usage:
@@ -29,7 +29,7 @@ FEATURES  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']
 
 # Simulation tag paths for writing spoofed values
 SIM_TAGS = {
-    'HMI_LIT101.Pv':    ('HMI_LIT101.Sim',    'HMI_LIT101.Sim_PV'),
+    'HMI_LIT101.Pv':    ('HMI_LIT101.Sim',    'HMI_LIT101.Sim_Pv'),
     'AI_FIT_101_FLOW':  ('AI_FIT_101_FLOW.Sim', 'AI_FIT_101_FLOW.Sim_PV'),
 }
 
