@@ -123,7 +123,7 @@ python3 scripts/attack/phase2_spoof.py attack \
 | Terminal | Expected |
 |----------|----------|
 | 4 (AE) | MSE stays below threshold — **fooled by Phase 2** |
-| 3 (Invariant) | I-2 + I-9 fire within 6 seconds |
+| 3 (Invariant) | I-2 + I-9 fire within 6 seconds; if PLC failover to P102 occurs, I-9b + I-9c continue firing |
 | 5 (Fusion) | score=1.5 → ALERT → recovery auto-launches |
 | 1 (Phase 1) | LIT101 dropping, MV101=CLOSED, MV201=OPEN |
 
@@ -160,6 +160,22 @@ python3 digital_twin/dashboard.py \
 | I-7 | P101=OFF + MV101=CLOSED | FIT101 ~0 | Phantom flow |
 | I-8 | Always | FIT101 ≤ 2.0 L/s | Pipe capacity |
 | I-9 ★ | MV101=CLOSED + P101.Auto=True | LIT101 in 300–850mm → VIOLATION | **Phase 1 direct signature** |
+| I-9b | MV101=CLOSED + P102.Auto=True | LIT101 in 300–850mm → VIOLATION | Attack ongoing after PLC failover to backup pump |
+| I-9c | MV101=CLOSED + FIT101 < 0 | LIT101 in 300–850mm → VIOLATION | Negative flow = sensor anomaly under attack |
+
+---
+
+## PLC Failover Behaviour (observed on real SWaT)
+
+During the attack, the PLC's own safety logic may detect the abnormal state and automatically switch from P101 (primary pump) to P102 (backup pump):
+- `P101.Auto` flips to `False`
+- `P102.Auto` flips to `True`
+
+This breaks I-2 and I-9 (which check P101.Auto) but **I-9b and I-9c continue firing** because:
+- I-9b: MV101 is still CLOSED while P102 is now running
+- I-9c: FIT101 reads -28 (invalid/backpressure) while MV101 is CLOSED
+
+LIT101 continues dropping even after failover — the root cause (MV101 CLOSED) is unchanged.
 
 ---
 
