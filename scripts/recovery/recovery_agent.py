@@ -18,7 +18,7 @@ SAFE_STATE = [
     ('HMI_MV101.Cmd',  2),       # 2=OPEN
     ('HMI_MV101.Auto', True),
     ('HMI_P101.Auto',  False),
-    ('HMI_P101.Cmd',   1),       # 1=OFF
+    ('HMI_P101.Cmd',   2),       # 2=ON — restore pump
     ('HMI_P101.Auto',  True),
 ]
 
