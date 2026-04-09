@@ -55,11 +55,21 @@ def check_invariants(state):
         violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
     # I-9: MV101=CLOSED and P101=OFF while level is in normal operating range
     # This is the key signature of a Phase 1 attack — both stopped simultaneously
-    # I-9: MV101=CLOSED AND P101=ON (running) in normal operating range
-    #       Valve closed while pump runs = tank actively draining with no refill
-    #       This is the key Phase 1 attack signature — causes pump cavitation
+    # I-9: MV101=CLOSED AND P101=ON in normal range — Phase 1 direct signature
     if mv_closed and p1_on and lit is not None and 300 < lit < 850:
         violations.append(('I-9', f'MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101={lit:.1f}mm — Phase 1 attack signature'))
+
+    # I-9b: MV101=CLOSED AND P102=ON in normal range
+    #       PLC safety logic may failover from P101 to P102 during attack
+    #       MV101 still closed = attack still active, tank still draining
+    if mv_closed and p2_on and lit is not None and 300 < lit < 850:
+        violations.append(('I-9b', f'MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101={lit:.1f}mm — attack ongoing'))
+
+    # I-9c: MV101=CLOSED AND LIT101 dropping — catch any pump combination
+    #       FIT101=-28 means sensor invalid/backpressure — still flaggable
+    if mv_closed and fit is not None and fit < 0 and lit is not None and 300 < lit < 850:
+        violations.append(('I-9c', f'MV101=CLOSED with invalid FIT101={fit:.1f} — sensor anomaly under attack, LIT101={lit:.1f}mm'))
+
     return violations
 
 
