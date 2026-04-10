@@ -218,3 +218,173 @@ ALERT if score ≥ 1.5 for 3 consecutive cycles
 - [1] Alsabbagh et al., "A Stealthy False Command Injection Attack on Modbus based SCADA Systems," IEEE CCNC 2023.
 - [2] Castellanos et al., "Constrained Concealment Attacks against Reconstruction-based Anomaly Detectors in ICS," ACM ACSAC 2020.
 - [3] Adepu & Mathur, "Using Process Invariants to Detect Cyber Attacks on a Water Treatment System," IFIP SEC 2016.
+
+---
+
+## Pre-Run Checklist (run through this before every demo)
+
+### 1. Connectivity — confirm both PLCs reachable
+```bash
+python3 -c "
+from pylogix import PLC
+for ip in ['192.168.1.10', '192.168.1.20', '192.168.1.11']:
+    with PLC() as plc:
+        plc.IPAddress = ip
+        r = plc.Read('HMI_LIT101.Pv') if ip == '192.168.1.10' else plc.Read('HMI_MV201.Cmd')
+        print(f'{ip}  {r.Status}  val={r.Value}')
+"
+```
+**Expected:** all 3 return `Success`
+
+---
+
+### 2. Tag names — confirm all confirmed tags read correctly
+```bash
+python3 -c "
+from pylogix import PLC
+with PLC() as plc:
+    plc.IPAddress = '192.168.1.10'
+    tags = [
+        'HMI_LIT101.Pv',
+        'AI_FIT_101_FLOW',
+        'HMI_MV101.Cmd',
+        'HMI_MV101.Auto',
+        'HMI_P101.Auto',
+        'HMI_P101.Cmd',
+        'HMI_LIT101.Sim',
+        'HMI_LIT101.Sim_Pv',
+        'AI_FIT_101_FLOW.Sim',
+        'AI_FIT_101_FLOW.Sim_PV',
+    ]
+    for t in tags:
+        r = plc.Read(t)
+        print(f'{t:35s} = {r.Value}  [{r.Status}]')
+"
+```
+**Expected:** all return `Success` with real values (not None)
+
+---
+
+### 3. Plant state — confirm normal before attack
+```bash
+python3 -c "
+from pylogix import PLC
+with PLC() as plc:
+    plc.IPAddress = '192.168.1.10'
+    lit = plc.Read('HMI_LIT101.Pv').Value
+    mv1 = plc.Read('HMI_MV101.Cmd').Value
+    p1a = plc.Read('HMI_P101.Auto').Value
+    fit = plc.Read('AI_FIT_101_FLOW').Value
+    sim = plc.Read('HMI_LIT101.Sim').Value
+    print(f'LIT101  = {lit:.1f}mm   (should be 300-850mm)')
+    print(f'MV101   = {mv1}         (should be 2=OPEN)')
+    print(f'P101    = {p1a}         (should be True=auto)')
+    print(f'FIT101  = {fit:.3f}     (should be > 0)')
+    print(f'Sim     = {sim}         (should be False)')
+"
+```
+**Expected:** LIT101 in range, MV101=2, P101=True, Sim=False
+
+---
+
+### 4. MV201 state on PLC2
+```bash
+python3 -c "
+from pylogix import PLC
+with PLC() as plc:
+    plc.IPAddress = '192.168.1.20'
+    mv2 = plc.Read('HMI_MV201.Cmd').Value
+    mv2a = plc.Read('HMI_MV201.Auto').Value
+    print(f'MV201.Cmd  = {mv2}    (should be 1=CLOSED)')
+    print(f'MV201.Auto = {mv2a}   (should be True)')
+"
+```
+**Expected:** MV201=1 (CLOSED), Auto=True
+
+---
+
+### 5. Model files present
+```bash
+ls -lh ae_model.pt adv_model.pt
+```
+**Expected:** both files present, non-zero size
+
+---
+
+### 6. Confirm model loads correctly
+```bash
+python3 -c "
+import torch
+ckpt = torch.load('adv_model.pt', map_location='cpu')
+print('feat_cols:', ckpt['feat_cols'])
+print('input_dim:', ckpt['input_dim'])
+print('window:   ', ckpt['window'])
+"
+```
+**Expected:** feat_cols = `['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']`
+
+---
+
+### 7. Dependencies installed
+```bash
+python3 -c "
+import pylogix, torch, numpy, pandas, sklearn
+print('pylogix', pylogix.__version__)
+print('torch  ', torch.__version__)
+print('numpy  ', numpy.__version__)
+print('pandas ', pandas.__version__)
+print('All OK')
+"
+```
+
+---
+
+### 8. Logs directory writable
+```bash
+mkdir -p logs && touch logs/test.log && echo "logs dir OK" && rm logs/test.log
+```
+
+---
+
+### 9. Sim tags are OFF (no leftover simulation from previous run)
+```bash
+python3 -c "
+from pylogix import PLC
+with PLC() as plc:
+    plc.IPAddress = '192.168.1.10'
+    for t in ['HMI_LIT101.Sim', 'AI_FIT_101_FLOW.Sim']:
+        r = plc.Read(t)
+        print(f'{t:30s} = {r.Value}')
+        if r.Value == True:
+            plc.Write(t, False)
+            print(f'  *** Sim was ON — disabled')
+"
+```
+**Expected:** both False. If True, script disables them automatically.
+
+---
+
+### 10. Open 5 terminals and confirm paths
+```bash
+# In each terminal, confirm you are in the right directory
+cd ~/swat-cps-project
+ls scripts/defense/ scripts/attack/ scripts/recovery/
+```
+
+---
+
+### Quick go/no-go summary
+| Check | Command | Pass condition |
+|-------|---------|---------------|
+| PLC1 reachable | Read HMI_LIT101.Pv | Status=Success |
+| PLC2 reachable | Read HMI_MV201.Cmd | Status=Success |
+| LIT101 in range | Read HMI_LIT101.Pv | 300–850mm |
+| MV101 open | Read HMI_MV101.Cmd | Value=2 |
+| P101 in auto | Read HMI_P101.Auto | Value=True |
+| MV201 closed | Read HMI_MV201.Cmd | Value=1 |
+| Sim tags off | Read HMI_LIT101.Sim | Value=False |
+| Models present | ls ae_model.pt adv_model.pt | Both exist |
+| feat_cols correct | torch.load adv_model.pt | ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW'] |
+| logs writable | mkdir logs | No error |
+
+**All 10 must pass before running the demo.**
