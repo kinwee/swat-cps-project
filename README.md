@@ -165,6 +165,25 @@ python3 digital_twin/dashboard.py \
 
 ---
 
+## Recovery Pipeline (recovery_agent.py)
+
+Auto-launched by fusion.py when score ≥ 1.5 for 3 consecutive cycles.
+
+| Step | Action | Detail |
+|------|--------|--------|
+| 1 DETECT | Log incident | Writes timestamp + state to `recovery_log.json` |
+| 2 CONTAIN | Block attacker | iptables DROP port 44818 (only if `--attacker-ip` passed) |
+| 3 SAFE STATE | Restore actuators | PLC1: MV101=OPEN + P101=ON (auto); PLC2: MV201=CLOSED (auto) |
+| 4 FAILOVER | Write to PLC1B | Same safe state written to redundant PLC at 192.168.1.11 |
+| 5 VERIFY | Confirm clean | 5 consecutive clean invariant cycles required |
+
+```bash
+# Manual run (fusion.py auto-launches this)
+python3 scripts/recovery/recovery_agent.py     --plc-ip 192.168.1.10     --plc2-ip 192.168.1.20     --plc-b-ip 192.168.1.11
+```
+
+---
+
 ## PLC Failover Behaviour (observed on real SWaT)
 
 During the attack, the PLC's own safety logic may detect the abnormal state and automatically switch from P101 (primary pump) to P102 (backup pump):

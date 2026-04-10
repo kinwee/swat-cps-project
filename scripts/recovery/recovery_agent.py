@@ -1,26 +1,44 @@
 #!/usr/bin/env python3
 """
 recovery_agent.py  —  SWaT Shallow Recovery Pipeline
-Target: Allen-Bradley ControlLogix PLC1 via pylogix
+Target: Allen-Bradley ControlLogix PLC1 + PLC2 via pylogix
+
+5-Step Pipeline:
+  1. DETECT    — log incident to recovery_log.json
+  2. CONTAIN   — iptables block attacker IP on port 44818 (if --attacker-ip given)
+  3. SAFE STATE— PLC1: MV101=OPEN, P101=ON (auto)
+                 PLC2: MV201=CLOSED (auto) — restore from attack-opened state
+  4. FAILOVER  — write safe state to PLC1B (192.168.1.11)
+  5. VERIFY    — 5 consecutive clean invariant cycles on PLC1
 
 Usage:
-  python3 recovery_agent.py --plc-ip 192.168.1.10 --plc-b-ip 192.168.1.11 \
-      --attacker-ip 192.168.1.99
+  python3 recovery_agent.py --plc-ip 192.168.1.10 --plc2-ip 192.168.1.20 \
+      --plc-b-ip 192.168.1.11
 """
 
 import argparse, json, os, subprocess, time
 from datetime import datetime
 from pylogix import PLC
 
-# Safe state: MV101 open, P101 off (prevent dry run, allow refill)
-SAFE_STATE = [
+# PLC1 safe state: MV101=OPEN, P101=ON
+SAFE_STATE_PLC1 = [
     ('HMI_MV101.Auto', False),
-    ('HMI_MV101.Cmd',  2),       # 2=OPEN
-    ('HMI_MV101.Auto', True),
+    ('HMI_MV101.Cmd',  2),       # 2=OPEN — restore inlet valve
+    ('HMI_MV101.Auto', True),    # return to auto
     ('HMI_P101.Auto',  False),
     ('HMI_P101.Cmd',   2),       # 2=ON — restore pump
-    ('HMI_P101.Auto',  True),
+    ('HMI_P101.Auto',  True),    # return to auto
 ]
+
+# PLC2 safe state: MV201=CLOSED (attack opened it to force outflow to P2)
+SAFE_STATE_PLC2 = [
+    ('HMI_MV201.Auto', False),
+    ('HMI_MV201.Cmd',  1),       # 1=CLOSE — stop forced outflow to P2
+    ('HMI_MV201.Auto', True),    # return to auto
+]
+
+# Keep backward compat alias
+SAFE_STATE = SAFE_STATE_PLC1
 
 READ_TAGS  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW', 'HMI_MV101.Cmd', 'HMI_P101.Auto']
 LIT_LL     = 250.0
@@ -61,18 +79,34 @@ def step2_contain(attacker_ip):
     log("STEP 2 — CONTAIN complete", entry={'step': 2, 'action': 'contain'})
 
 
-def step3_safe_state(plc_ip):
-    log(f"STEP 3 — SAFE STATE -> PLC {plc_ip}")
+def step3_safe_state(plc_ip, plc2_ip):
+    log(f"STEP 3 — SAFE STATE: PLC1={plc_ip}  PLC2={plc2_ip}")
+    # Restore PLC1: MV101=OPEN, P101=ON
     try:
         with PLC() as plc:
             plc.IPAddress = plc_ip
-            for tag, val in SAFE_STATE:
+            for tag, val in SAFE_STATE_PLC1:
                 plc.Write(tag, val)
-                log(f"    {tag} = {val}")
-        log("STEP 3 — SAFE STATE complete", entry={'step': 3, 'action': 'safe_state'})
+                log(f"    PLC1  {tag} = {val}")
+        log("STEP 3a — PLC1 safe state written")
     except Exception as e:
-        log(f"[!] SAFE STATE failed: {e}")
-        log("    *** Manually restore MV101=OPEN, P101=OFF via HMI! ***")
+        log(f"[!] PLC1 SAFE STATE failed: {e}")
+        log("    *** Manually restore MV101=OPEN, P101=ON via HMI! ***")
+
+    # Restore PLC2: MV201=CLOSED
+    try:
+        with PLC() as plc:
+            plc.IPAddress = plc2_ip
+            for tag, val in SAFE_STATE_PLC2:
+                plc.Write(tag, val)
+                log(f"    PLC2  {tag} = {val}")
+        log("STEP 3b — PLC2 safe state written")
+    except Exception as e:
+        log(f"[!] PLC2 SAFE STATE failed: {e}")
+        log("    *** Manually restore MV201=CLOSED via HMI! ***")
+
+    log("STEP 3 — SAFE STATE complete", entry={'step': 3, 'action': 'safe_state',
+        'plc1': plc_ip, 'plc2': plc2_ip})
 
 
 def step4_failover(plc_b_ip):
@@ -126,14 +160,16 @@ def step5_verify(plc_ip, clean_required=5, interval=1.0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--plc-ip',      default='192.168.1.10')
-    ap.add_argument('--plc-b-ip',    default='192.168.1.11')
-    ap.add_argument('--attacker-ip', default=None)
+    ap.add_argument('--plc-ip',      default='192.168.1.10', help='PLC1 IP (MV101, P101)')
+    ap.add_argument('--plc2-ip',     default='192.168.1.20', help='PLC2 IP (MV201)')
+    ap.add_argument('--plc-b-ip',    default='192.168.1.11', help='PLC1B redundant IP')
+    ap.add_argument('--attacker-ip', default=None,           help='Attacker IP to block via iptables')
     ap.add_argument('--iface',       default='eth0')
     args = ap.parse_args()
 
     print("=" * 60)
     print("  SWaT Recovery Agent (pylogix / Allen-Bradley)")
+    print(f"  PLC1: {args.plc_ip}  PLC2: {args.plc2_ip}  PLC1B: {args.plc_b_ip}")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
@@ -141,7 +177,7 @@ def main():
     step1_detect(args.attacker_ip)
     if args.attacker_ip:
         step2_contain(args.attacker_ip)
-    step3_safe_state(args.plc_ip)
+    step3_safe_state(args.plc_ip, args.plc2_ip)
     step4_failover(args.plc_b_ip)
     step5_verify(args.plc_ip)
     log(f"Total recovery time: {time.time()-t0:.1f}s",
