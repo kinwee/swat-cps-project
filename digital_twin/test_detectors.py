@@ -12,7 +12,6 @@ Uses PLC simulator + real CSV data for AE, simulated tag writes for invariant ch
 import sys, os, time, threading, types
 import numpy as np
 import pandas as pd
-import torch
 
 # ── Setup: patch pylogix with simulator ──────────────────────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
@@ -53,43 +52,71 @@ def read_invariants():
 
 
 def load_ae():
-    """Load the trained autoencoder model."""
-    if not os.path.exists(AE_MODEL):
-        print(f"[!] ae_model.pt not found at {AE_MODEL}")
-        return None, None, None, None
-    ckpt = torch.load(AE_MODEL, map_location='cpu', weights_only=False)
-
-    from scripts.defense.autoencoder_detector import Autoencoder
-    ae = Autoencoder(ckpt['input_dim'])
-    ae.load_state_dict(ckpt['state'])
-    ae.eval()
-    return ae, ckpt['mu'], ckpt['sigma'], ckpt['threshold']
+    """Load the trained autoencoder model (numpy .npz format)."""
+    npz_path = AE_MODEL.replace('.pt', '.npz') if AE_MODEL.endswith('.pt') else AE_MODEL
+    if not npz_path.endswith('.npz'):
+        npz_path = npz_path + '.npz'
+    # Try .npz first, then .pt
+    for path in [npz_path, AE_MODEL]:
+        if os.path.exists(path) and path.endswith('.npz'):
+            m = np.load(path, allow_pickle=True)
+            weights = {
+                'enc_w0': m['state_encoder.0.weight'], 'enc_b0': m['state_encoder.0.bias'],
+                'enc_w1': m['state_encoder.2.weight'], 'enc_b1': m['state_encoder.2.bias'],
+                'enc_w2': m['state_encoder.4.weight'], 'enc_b2': m['state_encoder.4.bias'],
+                'dec_w0': m['state_decoder.0.weight'], 'dec_b0': m['state_decoder.0.bias'],
+                'dec_w1': m['state_decoder.2.weight'], 'dec_b1': m['state_decoder.2.bias'],
+                'dec_w2': m['state_decoder.4.weight'], 'dec_b2': m['state_decoder.4.bias'],
+            }
+            return weights, m['mu'], m['sigma'], float(m['threshold'])
+    print(f"[!] No model found at {npz_path} or {AE_MODEL}")
+    return None, None, None, None
 
 
 def load_adv():
-    """Load the trained adversarial encoder."""
-    if not os.path.exists(ADV_MODEL):
-        print(f"[!] adv_model.pt not found at {ADV_MODEL}")
-        return None, None, None
-    ckpt = torch.load(ADV_MODEL, map_location='cpu', weights_only=False)
+    """Load the trained adversarial encoder (numpy .npz format)."""
+    npz_path = ADV_MODEL.replace('.pt', '.npz') if ADV_MODEL.endswith('.pt') else ADV_MODEL
+    if not npz_path.endswith('.npz'):
+        npz_path = npz_path + '.npz'
+    for path in [npz_path, ADV_MODEL]:
+        if os.path.exists(path) and path.endswith('.npz'):
+            m = np.load(path, allow_pickle=True)
+            weights = {
+                'adv_w0': m['adv_net.0.weight'], 'adv_b0': m['adv_net.0.bias'],
+                'adv_w1': m['adv_net.2.weight'], 'adv_b1': m['adv_net.2.bias'],
+                'adv_w2': m['adv_net.4.weight'], 'adv_b2': m['adv_net.4.bias'],
+            }
+            return weights, m['mu'], m['sigma']
+    print(f"[!] No adversarial model found at {npz_path} or {ADV_MODEL}")
+    return None, None, None
 
-    from scripts.attack.phase2_spoof import Autoencoder, AdversarialEncoder
-    ae = Autoencoder(ckpt['input_dim'])
-    ae.load_state_dict(ckpt['ae'])
-    ae.eval()
-    adv = AdversarialEncoder(ckpt['input_dim'])
-    adv.load_state_dict(ckpt['adv'])
-    adv.eval()
-    return adv, ckpt['mu'], ckpt['sigma']
 
+def relu(x):
+    return np.maximum(0, x)
 
-def ae_score(ae, mu, sigma, window_data):
-    """Compute AE reconstruction MSE on a window of normalised sensor data."""
+def ae_forward_np(x, weights):
+    """Pure numpy AE forward pass."""
+    h = relu(x @ weights['enc_w0'].T + weights['enc_b0'])
+    h = relu(h @ weights['enc_w1'].T + weights['enc_b1'])
+    h =      h @ weights['enc_w2'].T + weights['enc_b2']
+    h = relu(h @ weights['dec_w0'].T + weights['dec_b0'])
+    h = relu(h @ weights['dec_w1'].T + weights['dec_b1'])
+    h =      h @ weights['dec_w2'].T + weights['dec_b2']
+    return h
+
+def adv_forward_np(x, weights, epsilon=0.1):
+    """Pure numpy adversarial encoder forward pass."""
+    h = np.tanh(x @ weights['adv_w0'].T + weights['adv_b0'])
+    h = np.tanh(h @ weights['adv_w1'].T + weights['adv_b1'])
+    h = np.tanh(h @ weights['adv_w2'].T + weights['adv_b2'])
+    return np.clip(h * epsilon, -epsilon, epsilon)
+
+def ae_score(ae_weights, mu, sigma, window_data):
+    """Compute AE reconstruction MSE on a window of sensor data."""
     norm = (window_data - mu) / sigma
-    x = torch.tensor(norm.flatten(), dtype=torch.float32).unsqueeze(0)
-    with torch.no_grad():
-        mse = float(((ae(x) - x)**2).mean())
-    return mse
+    x = norm.flatten().astype(np.float32).reshape(1, -1)
+    recon = ae_forward_np(x, ae_weights)
+    return float(((recon - x)**2).mean())
 
 
 def load_csv_windows():
@@ -107,17 +134,17 @@ print("  SWaT Detector Test — AE + Invariant Checker + Fusion")
 print("  Testing 3 scenarios: Normal, Phase 1, Phase 1+2 (adversarial)")
 print("=" * 72)
 
-ae, ae_mu, ae_sigma, ae_threshold = load_ae()
-adv, adv_mu, adv_sigma = load_adv()
+ae_weights, ae_mu, ae_sigma, ae_threshold = load_ae()
+adv_weights, adv_mu, adv_sigma = load_adv()
 csv_data = load_csv_windows()
 
-if ae is None:
+if ae_weights is None:
     print("[!] Cannot proceed without ae_model.pt")
     sys.exit(1)
 
 print(f"\n[*] AE threshold: {ae_threshold:.6f}")
 print(f"[*] CSV data: {len(csv_data)} samples")
-print(f"[*] Adversarial model: {'loaded' if adv is not None else 'NOT FOUND — Phase 2 test will be skipped'}")
+print(f"[*] Adversarial model: {'loaded' if adv_weights is not None else 'NOT FOUND — Phase 2 test will be skipped'}")
 
 results = {}
 
@@ -131,7 +158,7 @@ ae_scores_normal = []
 test_start = 1000  # skip initial transient
 for i in range(test_start, test_start + 500):
     window = csv_data[i:i+WINDOW]
-    score = ae_score(ae, ae_mu, ae_sigma, window)
+    score = ae_score(ae_weights, ae_mu, ae_sigma, window)
     ae_scores_normal.append(score)
 
 ae_alarms_normal = sum(1 for s in ae_scores_normal if s > ae_threshold)
@@ -183,7 +210,7 @@ for i in range(100):
     for j in range(WINDOW):
         window[j, 0] = max(250, window[0, 0] - (i + j) * 0.7)  # LIT101 drops
         window[j, 1] = 0.0  # FIT101 = 0 (valve closed)
-    score = ae_score(ae, ae_mu, ae_sigma, window)
+    score = ae_score(ae_weights, ae_mu, ae_sigma, window)
     ae_scores_phase1.append(score)
 
 ae_alarms_phase1 = sum(1 for s in ae_scores_phase1 if s > ae_threshold)
@@ -226,7 +253,7 @@ results['phase1'] = {
 # ═══════════════════════════════════════════════════════════════════════════════
 separator("SCENARIO 3: Phase 1 + Phase 2 (adversarial evasion)")
 
-if adv is not None:
+if adv_weights is not None:
     print("[*] Applying adversarial perturbation to attacked windows...")
 
     ae_scores_evaded = []
@@ -239,14 +266,13 @@ if adv is not None:
 
         # Apply adversarial perturbation to evade AE
         norm = (window - adv_mu) / adv_sigma
-        x = torch.tensor(norm.flatten(), dtype=torch.float32).unsqueeze(0)
-        with torch.no_grad():
-            delta = adv(x)
-            x_perturbed = x + delta
+        x = norm.flatten().astype(np.float32).reshape(1, -1)
+        delta = adv_forward_np(x, adv_weights)
+        x_perturbed = x + delta
 
-        # Score the perturbed input against the DEFENSE AE (not the adversarial one)
-        with torch.no_grad():
-            mse = float(((ae(x_perturbed) - x_perturbed)**2).mean())
+        # Score the perturbed input against the DEFENSE AE
+        recon = ae_forward_np(x_perturbed, ae_weights)
+        mse = float(((recon - x_perturbed)**2).mean())
         ae_scores_evaded.append(mse)
 
     ae_alarms_evaded = sum(1 for s in ae_scores_evaded if s > ae_threshold)
