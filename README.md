@@ -11,6 +11,10 @@
 
 ```
 swat-cps-project/
+├── run_demo.py                    ← ONE-COMMAND DEMO (runs everything)
+├── setup.sh                       ← One-command environment bootstrap (installs uv + deps)
+├── pyproject.toml                 ← Project config for uv
+├── .python-version                ← Pins Python 3.10
 ├── slides/swat_sutd.pptx          ← Main deck (49 slides, SUTD theme)
 ├── scripts/
 │   ├── attack/
@@ -46,16 +50,19 @@ swat-cps-project/
 
 ---
 
-## HMI Dependencies (no PyTorch required)
+## Quick Start (2 commands)
 
 ```bash
-pip install pylogix numpy pandas
+# 1. Bootstrap environment (installs uv + creates venv + installs deps)
+bash setup.sh
+
+# 2. Run the demo (everything automated — preflight, defense, attack, recovery, evidence)
+uv run python3 run_demo.py --plc-ip 192.168.1.10 --duration 120
 ```
 
-Training (on Mac only) additionally requires PyTorch:
-```bash
-pip install torch scikit-learn matplotlib
-```
+That's it. `setup.sh` installs `uv` if missing, creates a `.venv`, and installs `pylogix`, `numpy`, `pandas`. No PyTorch required on the HMI.
+
+For training on Mac: `bash setup.sh --train` (adds PyTorch, matplotlib, scikit-learn).
 
 ---
 
@@ -76,52 +83,54 @@ pip install torch scikit-learn matplotlib
 
 ---
 
-## Lab Day — Step by Step
+## Lab Day — One Command
 
-### 1. Connectivity Check
 ```bash
-python3 -c "
-from pylogix import PLC
-with PLC() as plc:
-    plc.IPAddress = '192.168.1.10'
-    for t in ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW', 'HMI_MV101.Cmd', 'HMI_P101.Auto']:
-        r = plc.Read(t)
-        print(f'{t:35s} = {r.Value}  [{r.Status}]')
-"
+# Full demo — attack + defense + recovery + evidence collection
+uv run python3 run_demo.py --plc-ip 192.168.1.10 --duration 120
+
+# Phase 1 only (no adversarial evasion)
+uv run python3 run_demo.py --plc-ip 192.168.1.10 --duration 120 --skip-phase2
 ```
 
-### 2. Start Defense (terminals 3, 4, 5 — start BEFORE attack)
+`run_demo.py` automatically:
+1. Runs preflight checks (PLC connectivity, model files, sim tags off)
+2. Saves pre-attack plant state snapshot
+3. Starts all 3 defense layers (invariant checker, AE detector, fusion)
+4. Waits 15s for clean baseline readings
+5. Launches Phase 1 + Phase 2 attack
+6. Monitors for invariant detection (logs time-to-detect)
+7. Saves mid-attack and post-attack state snapshots
+8. Waits for recovery to complete
+9. Stops all processes and collects evidence
+10. Generates summary report
+
+Evidence saved to `evidence/demo_YYYYMMDD_HHMMSS/` with all logs, state snapshots, timeline, and summary.
+
+Press Ctrl+C at any time to stop gracefully and save whatever evidence has been collected.
+
+### Manual mode (5 terminals)
+
+If you prefer to run each component separately:
+
 ```bash
 # Terminal 3 — Layer 1: Invariant Checker
-python3 scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
+uv run python3 scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
 
-# Terminal 4 — Layer 2: Autoencoder Detector (numpy — no PyTorch)
-python3 scripts/defense/autoencoder_detector.py monitor \
+# Terminal 4 — Layer 2: Autoencoder Detector
+uv run python3 scripts/defense/autoencoder_detector.py monitor \
     --plc-ip 192.168.1.10 --model ae_model.npz
 
-# Terminal 5 — Layer 3: Fusion Engine (auto-triggers recovery on ALERT)
-python3 scripts/defense/fusion.py
-```
+# Terminal 5 — Layer 3: Fusion Engine
+uv run python3 scripts/defense/fusion.py
 
-Wait for all 3 to show clean readings (inv_flag=0, MSE below threshold).
-
-### 3. Run Attack (terminals 1 and 2)
-```bash
 # Terminal 1 — Phase 1: False command injection
-python3 scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 120
+uv run python3 scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 120
 
-# Terminal 2 — Phase 2: Adversarial sensor spoofing (numpy — no PyTorch)
-python3 scripts/attack/phase2_spoof.py attack \
+# Terminal 2 — Phase 2: Adversarial sensor spoofing
+uv run python3 scripts/attack/phase2_spoof.py attack \
     --plc-ip 192.168.1.10 --model adv_model.npz --duration 120
 ```
-
-### 4. What to Observe
-| Terminal | Expected |
-|----------|----------|
-| 4 (AE) | MSE stays below threshold — **fooled by Phase 2** |
-| 3 (Invariant) | I-2 + I-9 fire within 1–6 seconds |
-| 5 (Fusion) | score=1.5 → ALERT → recovery auto-launches |
-| 1 (Phase 1) | LIT101 dropping, MV101=CLOSED |
 
 ---
 
@@ -157,35 +166,38 @@ AE threshold=0.000717 (95th percentile). Auto-calibrated from CSV data: rise=1.2
 
 ```bash
 # Full end-to-end pipeline test
-python3 digital_twin/test_all.py
+uv run python3 digital_twin/test_all.py
 
 # Detector validation (AE + invariant + fusion, 3 scenarios)
-python3 digital_twin/test_detectors.py
+uv run python3 digital_twin/test_detectors.py
+
+# One-command demo against PLC simulator
+uv run python3 run_demo.py --sim --duration 30
 
 # ODE twin with simulated attack
-python3 digital_twin/ode_twin.py \
+uv run python3 digital_twin/ode_twin.py \
     --data assets/19-Feb-2026_0930_1735.csv --attack --attack-start 5000
 
 # Live dashboard
-python3 digital_twin/dashboard.py \
+uv run python3 digital_twin/dashboard.py \
     --data assets/19-Feb-2026_0930_1735.csv --speed 5 --attack 5000
 ```
 
 ---
 
-## Retraining Models (on Mac — requires PyTorch)
+## Retraining Models (Mac only — requires `bash setup.sh --train`)
 
 ```bash
 # Retrain AE detector → saves ae_model.npz
-python3 scripts/defense/autoencoder_detector.py train \
+uv run python3 scripts/defense/autoencoder_detector.py train \
     --data assets/19-Feb-2026_0930_1735.csv --save ae_model.npz --epochs 500
 
 # Retrain adversarial encoder → saves adv_model.npz
-python3 scripts/attack/phase2_spoof.py train \
+uv run python3 scripts/attack/phase2_spoof.py train \
     --data assets/19-Feb-2026_0930_1735.csv --model adv_model.npz --epochs 500
 ```
 
-Copy the `.npz` files to the HMI via USB. No PyTorch needed on the HMI.
+Copy the `.npz` files to the HMI via USB. No retraining needed on the HMI.
 
 ---
 
