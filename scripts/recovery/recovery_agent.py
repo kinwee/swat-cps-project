@@ -20,6 +20,22 @@ import argparse, json, os, subprocess, time
 from datetime import datetime
 from pylogix import PLC
 
+# ── Logging setup ─────────────────────────────────────────────────────────────
+import os as _os
+from datetime import datetime as _logdt
+_LOG_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', 'logs')
+_os.makedirs(_LOG_DIR, exist_ok=True)
+LOG_FILE = _os.path.join(_LOG_DIR, f"recovery_{_logdt.now().strftime('%Y%m%d_%H%M%S')}.log")
+_logfile = open(LOG_FILE, 'w', buffering=1)
+_orig_print = print
+def print(*args, **kwargs):
+    msg = ' '.join(str(a) for a in args)
+    ts  = _logdt.now().strftime('%Y-%m-%d %H:%M:%S')
+    line = f"[{ts}] {msg}"
+    _orig_print(line, **kwargs)
+    _logfile.write(line + '\n')
+
+
 # PLC1 safe state: MV101=OPEN, P101=ON
 SAFE_STATE_PLC1 = [
     ('HMI_MV101.Auto', False),
@@ -159,6 +175,7 @@ def step5_verify(plc_ip, clean_required=5, interval=1.0):
 
 
 def main():
+    _orig_print(f"[LOG] Writing to {LOG_FILE}")
     ap = argparse.ArgumentParser()
     ap.add_argument('--plc-ip',      default='192.168.1.10', help='PLC1 IP (MV101, P101)')
     ap.add_argument('--plc2-ip',     default='192.168.1.20', help='PLC2 IP (MV201)')

@@ -33,6 +33,22 @@ import time
 from datetime import datetime
 from collections import deque
 
+# ── Logging setup ─────────────────────────────────────────────────────────────
+import os as _os
+from datetime import datetime as _logdt
+_LOG_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', 'logs')
+_os.makedirs(_LOG_DIR, exist_ok=True)
+LOG_FILE = _os.path.join(_LOG_DIR, f"fusion_{_logdt.now().strftime('%Y%m%d_%H%M%S')}.log")
+_logfile = open(LOG_FILE, 'w', buffering=1)
+_orig_print = print
+def print(*args, **kwargs):
+    msg = ' '.join(str(a) for a in args)
+    ts  = _logdt.now().strftime('%Y-%m-%d %H:%M:%S')
+    line = f"[{ts}] {msg}"
+    _orig_print(line, **kwargs)
+    _logfile.write(line + '\n')
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [FUSION] %(levelname)s %(message)s"
@@ -59,6 +75,7 @@ def read_flag(path: str) -> int:
 
 
 def main():
+    _orig_print(f"[LOG] Writing to {LOG_FILE}")
     parser = argparse.ArgumentParser(description="SWaT Decision Fusion Engine")
     parser.add_argument("--interval",         type=float, default=1.0)
     parser.add_argument("--recovery-script",  default="../recovery/recovery_agent.py",

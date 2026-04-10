@@ -100,12 +100,12 @@ def main():
                     if violations:
                         print(f"[{ts}] cycle={cycle:5d}  *** VIOLATION ***")
                         for inv_id, msg in violations:
-                            print(f"             {inv_id}: {msg}")
+                            tprint(f"             {inv_id}: {msg}")
                     elif cycle % 10 == 0:
                         print(f"[{ts}] cycle={cycle:5d}  OK  {state}")
                     time.sleep(args.poll_interval)
         except Exception as e:
-            print(f"[!] Error: {e} — reconnecting in 3s...")
+            tprint(f"[!] Error: {e} — reconnecting in 3s...")
             with open(args.flag_file, 'w') as f:
                 f.write('0')
             time.sleep(3)

