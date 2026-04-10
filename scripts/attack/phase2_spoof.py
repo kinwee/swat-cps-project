@@ -150,7 +150,7 @@ def attack(plc_ip, model_path, duration):
     global stop_flag
     print(f"[LOG] Writing to {LOG_FILE}")
     tprint(f"[*] Loading {model_path}...")
-    ckpt = torch.load(model_path, map_location='cpu')
+    ckpt = torch.load(model_path, map_location='cpu', weights_only=False)
     ae  = Autoencoder(ckpt['input_dim']); ae.load_state_dict(ckpt['ae']);   ae.eval()
     adv = AdversarialEncoder(ckpt['input_dim']); adv.load_state_dict(ckpt['adv']); adv.eval()
     mu, sigma   = ckpt['mu'], ckpt['sigma']

@@ -99,7 +99,7 @@ def train(data_path, save_path, epochs, window):
 
 def monitor(plc_ip, model_path, flag_file, interval):
     print(f"[*] Loading model: {model_path}")
-    ckpt = torch.load(model_path, map_location='cpu')
+    ckpt = torch.load(model_path, map_location='cpu', weights_only=False)
     ae = Autoencoder(ckpt['input_dim']); ae.load_state_dict(ckpt['state']); ae.eval()
     mu, sigma = ckpt['mu'], ckpt['sigma']
     window, threshold = ckpt['window'], ckpt['threshold']

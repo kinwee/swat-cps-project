@@ -122,7 +122,7 @@ def train(args):
 
 def predict(args):
     print(f"[*] Loading model: {args.model}")
-    ckpt     = torch.load(args.model, map_location='cpu')
+    ckpt     = torch.load(args.model, map_location='cpu', weights_only=False)
     features = ckpt['features']
     mu, sigma= ckpt['mu'], ckpt['sigma']
     window   = ckpt['window']
@@ -178,7 +178,7 @@ def predict(args):
 def attack_sim(args):
     """Show what LSTM twin predicts when attack is injected vs real."""
     print(f"[*] Attack simulation using LSTM twin...")
-    ckpt     = torch.load(args.model, map_location='cpu')
+    ckpt     = torch.load(args.model, map_location='cpu', weights_only=False)
     features = ckpt['features']
     mu, sigma= ckpt['mu'], ckpt['sigma']
     window   = ckpt['window']
