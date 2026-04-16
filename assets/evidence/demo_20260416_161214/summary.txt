@@ -1,0 +1,54 @@
+======================================================================
+  SWaT Lab Demo — Evidence Summary
+======================================================================
+  Date:     20260416_161214
+  PLC:      192.168.1.10
+  Mode:     LIVE PLC
+  Duration: 120s
+  Phase 2:  Enabled
+
+── Plant State ──────────────────────────────────────────────────
+  Pre-attack:     LIT101=796.1244506835938mm  MV101=2  P101=True
+  Post-attack:    LIT101=771.3952026367188mm  MV101=1  P101=True
+  Post-recovery:  LIT101=774.2999267578125mm  MV101=1  P101=True
+
+── Detection ────────────────────────────────────────────────────
+  Time to detect:       0.0s
+  Invariant violations: 179
+
+── Evidence Files ───────────────────────────────────────────────
+  autoencoder.log                             8,440 bytes
+  fusion.log                                 18,107 bytes
+  fusion_log.json                            23,225 bytes
+  invariant_checker.log                      57,297 bytes
+  mid_attack_state.json                         180 bytes
+  phase1.log                                 14,099 bytes
+  phase2.log                                  1,790 bytes
+  post_attack_state.json                        179 bytes
+  post_recovery_state.json                      179 bytes
+  pre_attack_state.json                         181 bytes
+  timeline.json                               4,710 bytes
+
+── Timeline (first 20 events) ───────────────────────────────────
+  2026-04-16 16:12:14  DEMO START            plc=192.168.1.10  duration=120s  sim=False
+  2026-04-16 16:12:14  PREFLIGHT             Running pre-flight checks
+  2026-04-16 16:12:14  CHECK                 ae_model.npz: FOUND
+  2026-04-16 16:12:14  CHECK                 adv_model.npz: FOUND
+  2026-04-16 16:12:14  CHECK                 PLC OK: LIT101=795.6mm  MV101=2
+  2026-04-16 16:12:14  PREFLIGHT             ALL CHECKS PASSED
+  2026-04-16 16:12:14  STATE SAVED           pre_attack_state.json: LIT101=796.1244506835938mm  MV101=2
+  2026-04-16 16:12:14  PHASE                 Starting defense layers
+  2026-04-16 16:12:14  STARTED invariant_checker  PID=65031  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
+  2026-04-16 16:12:14  STARTED autoencoder   PID=65032  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model /home/ubuntu/Desktop/Group 2/swat-cps-project/ae_model.npz
+  2026-04-16 16:12:14  STARTED fusion        PID=65033  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/fusion.py --recovery-script /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/recovery/recovery_agent.py
+  2026-04-16 16:12:14  WAITING               Defense layers initialising (15s baseline)...
+  2026-04-16 16:12:49  WARNING               Defense not fully clean — proceeding anyway
+  2026-04-16 16:12:49  PHASE                 Launching attack
+  2026-04-16 16:12:49  STARTED phase1        PID=65046  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 120
+  2026-04-16 16:12:51  STARTED phase2        PID=65047  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /home/ubuntu/Desktop/Group 2/swat-cps-project/adv_model.npz --duration 120
+  2026-04-16 16:12:51  MONITORING            Attack running for 120s — watching for detection
+  2026-04-16 16:12:51  DETECTED              Invariant violation at T+0.0s
+  2026-04-16 16:13:50  STATE SAVED           mid_attack_state.json: LIT101=807.4292602539062mm  MV101=1
+  2026-04-16 16:13:51  STATE SAVED           mid_attack_state.json: LIT101=807.4292602539062mm  MV101=1
+
+======================================================================

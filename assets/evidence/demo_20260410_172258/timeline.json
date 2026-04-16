@@ -1,0 +1,157 @@
+[
+  {
+    "time": "2026-04-10 17:22:58",
+    "event": "DEMO START",
+    "detail": "plc=192.168.1.10  duration=120s  sim=False"
+  },
+  {
+    "time": "2026-04-10 17:22:58",
+    "event": "PREFLIGHT",
+    "detail": "Running pre-flight checks"
+  },
+  {
+    "time": "2026-04-10 17:22:58",
+    "event": "CHECK",
+    "detail": "ae_model.npz: FOUND"
+  },
+  {
+    "time": "2026-04-10 17:22:58",
+    "event": "CHECK",
+    "detail": "adv_model.npz: FOUND"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "CHECK",
+    "detail": "PLC OK: LIT101=528.1mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "PREFLIGHT",
+    "detail": "ALL CHECKS PASSED"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "STATE SAVED",
+    "detail": "pre_attack_state.json: LIT101=528.1458740234375mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "PHASE",
+    "detail": "Starting defense layers"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "STARTED invariant_checker",
+    "detail": "PID=36111  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "STARTED autoencoder",
+    "detail": "PID=36112  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model /home/ubuntu/Desktop/Group 2/swat-cps-project/ae_model.npz"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "STARTED fusion",
+    "detail": "PID=36113  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/fusion.py --recovery-script /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/recovery/recovery_agent.py"
+  },
+  {
+    "time": "2026-04-10 17:22:59",
+    "event": "WAITING",
+    "detail": "Defense layers initialising (15s baseline)..."
+  },
+  {
+    "time": "2026-04-10 17:23:34",
+    "event": "WARNING",
+    "detail": "Defense not fully clean \u2014 proceeding anyway"
+  },
+  {
+    "time": "2026-04-10 17:23:34",
+    "event": "PHASE",
+    "detail": "Launching attack"
+  },
+  {
+    "time": "2026-04-10 17:23:34",
+    "event": "STARTED phase1",
+    "detail": "PID=36128  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 120"
+  },
+  {
+    "time": "2026-04-10 17:23:36",
+    "event": "STARTED phase2",
+    "detail": "PID=36129  cmd=/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /home/ubuntu/Desktop/Group 2/swat-cps-project/adv_model.npz --duration 120"
+  },
+  {
+    "time": "2026-04-10 17:23:36",
+    "event": "MONITORING",
+    "detail": "Attack running for 120s \u2014 watching for detection"
+  },
+  {
+    "time": "2026-04-10 17:23:36",
+    "event": "DETECTED",
+    "detail": "Invariant violation at T+0.0s"
+  },
+  {
+    "time": "2026-04-10 17:24:35",
+    "event": "STATE SAVED",
+    "detail": "mid_attack_state.json: LIT101=502.7100830078125mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:24:36",
+    "event": "STATE SAVED",
+    "detail": "mid_attack_state.json: LIT101=502.7100830078125mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:25:36",
+    "event": "STATE SAVED",
+    "detail": "post_attack_state.json: LIT101=466.4797668457031mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:25:36",
+    "event": "WAITING",
+    "detail": "Waiting 30s for recovery to complete..."
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STATE SAVED",
+    "detail": "post_recovery_state.json: LIT101=460.3171081542969mm  MV101=1"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "PHASE",
+    "detail": "Stopping all processes"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STOPPED invariant_checker",
+    "detail": "exit=1"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STOPPED autoencoder",
+    "detail": "exit=-15"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STOPPED fusion",
+    "detail": "exit=-15"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STOPPED phase1",
+    "detail": "exit=0"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "STOPPED phase2",
+    "detail": "exit=1"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "PHASE",
+    "detail": "Collecting evidence"
+  },
+  {
+    "time": "2026-04-10 17:26:06",
+    "event": "EVIDENCE",
+    "detail": "Copied fusion_log.json"
+  }
+]

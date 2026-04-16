@@ -1,0 +1,22 @@
+# fusion
+# Command: /Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/fusion.py --recovery-script /Users/kinwee/swat-cps-project/scripts/recovery/recovery_agent.py
+# Started: 2026-04-16 18:34:54
+
+2026-04-16 18:34:54,721 [FUSION] INFO Fusion engine started. Waiting for flag files...
+2026-04-16 18:35:55,012 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[0.0, 0.0, 1.0]
+2026-04-16 18:35:56,015 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[0.0, 1.0, 1.0]
+2026-04-16 18:35:57,019 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:35:58,025 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:35:59,030 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:00,039 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:01,044 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:02,047 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:03,057 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:04,061 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:05,064 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:06,070 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:07,076 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:08,083 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:09,089 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:10,095 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 18:36:11,099 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]

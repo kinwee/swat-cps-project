@@ -1,0 +1,152 @@
+[
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "DEMO START",
+    "detail": "plc=192.168.1.10  duration=30s  sim=True"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "PREFLIGHT",
+    "detail": "Running pre-flight checks"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "CHECK",
+    "detail": "ae_model.npz: FOUND"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "CHECK",
+    "detail": "adv_model.npz: FOUND"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "CHECK",
+    "detail": "PLC OK: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "PREFLIGHT",
+    "detail": "ALL CHECKS PASSED"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "STATE SAVED",
+    "detail": "pre_attack_state.json: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "PHASE",
+    "detail": "Starting defense layers"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "STARTED invariant_checker",
+    "detail": "PID=62163  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "STARTED autoencoder",
+    "detail": "PID=62164  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/ae_model.npz"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "STARTED fusion",
+    "detail": "PID=62165  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/fusion.py --recovery-script /Users/kinwee/swat-cps-project/scripts/recovery/recovery_agent.py"
+  },
+  {
+    "time": "2026-04-16 18:34:54",
+    "event": "WAITING",
+    "detail": "Defense layers initialising (15s baseline)..."
+  },
+  {
+    "time": "2026-04-16 18:35:09",
+    "event": "BASELINE",
+    "detail": "Defense layers report clean \u2014 ready for attack"
+  },
+  {
+    "time": "2026-04-16 18:35:09",
+    "event": "PHASE",
+    "detail": "Launching attack"
+  },
+  {
+    "time": "2026-04-16 18:35:09",
+    "event": "STARTED phase1",
+    "detail": "PID=62207  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 30"
+  },
+  {
+    "time": "2026-04-16 18:35:11",
+    "event": "STARTED phase2",
+    "detail": "PID=62209  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/adv_model.npz --duration 30"
+  },
+  {
+    "time": "2026-04-16 18:35:11",
+    "event": "MONITORING",
+    "detail": "Attack running for 30s \u2014 watching for detection"
+  },
+  {
+    "time": "2026-04-16 18:35:25",
+    "event": "STATE SAVED",
+    "detail": "mid_attack_state.json: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:35:26",
+    "event": "STATE SAVED",
+    "detail": "mid_attack_state.json: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:35:41",
+    "event": "STATE SAVED",
+    "detail": "post_attack_state.json: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:35:41",
+    "event": "WAITING",
+    "detail": "Waiting 30s for recovery to complete..."
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STATE SAVED",
+    "detail": "post_recovery_state.json: LIT101=650.0mm  MV101=2"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "PHASE",
+    "detail": "Stopping all processes"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STOPPED invariant_checker",
+    "detail": "exit=-15"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STOPPED autoencoder",
+    "detail": "exit=-15"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STOPPED fusion",
+    "detail": "exit=-15"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STOPPED phase1",
+    "detail": "exit=0"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "STOPPED phase2",
+    "detail": "exit=0"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "PHASE",
+    "detail": "Collecting evidence"
+  },
+  {
+    "time": "2026-04-16 18:36:11",
+    "event": "EVIDENCE",
+    "detail": "Copied fusion_log.json"
+  }
+]

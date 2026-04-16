@@ -1,0 +1,54 @@
+======================================================================
+  SWaT Lab Demo — Evidence Summary
+======================================================================
+  Date:     20260416_183454
+  PLC:      192.168.1.10
+  Mode:     SIMULATOR
+  Duration: 30s
+  Phase 2:  Enabled
+
+── Plant State ──────────────────────────────────────────────────
+  Pre-attack:     LIT101=650.0mm  MV101=2  P101=True
+  Post-attack:    LIT101=650.0mm  MV101=2  P101=True
+  Post-recovery:  LIT101=650.0mm  MV101=2  P101=True
+
+── Detection ────────────────────────────────────────────────────
+  Time to detect:       NOT DETECTED
+  Invariant violations: 0
+
+── Evidence Files ───────────────────────────────────────────────
+  autoencoder.log                               259 bytes
+  fusion.log                                  2,148 bytes
+  fusion_log.json                             7,802 bytes
+  invariant_checker.log                         202 bytes
+  mid_attack_state.json                         167 bytes
+  phase1.log                                    707 bytes
+  phase2.log                                    609 bytes
+  post_attack_state.json                        167 bytes
+  post_recovery_state.json                      167 bytes
+  pre_attack_state.json                         167 bytes
+  timeline.json                               4,339 bytes
+
+── Timeline (first 20 events) ───────────────────────────────────
+  2026-04-16 18:34:54  DEMO START            plc=192.168.1.10  duration=30s  sim=True
+  2026-04-16 18:34:54  PREFLIGHT             Running pre-flight checks
+  2026-04-16 18:34:54  CHECK                 ae_model.npz: FOUND
+  2026-04-16 18:34:54  CHECK                 adv_model.npz: FOUND
+  2026-04-16 18:34:54  CHECK                 PLC OK: LIT101=650.0mm  MV101=2
+  2026-04-16 18:34:54  PREFLIGHT             ALL CHECKS PASSED
+  2026-04-16 18:34:54  STATE SAVED           pre_attack_state.json: LIT101=650.0mm  MV101=2
+  2026-04-16 18:34:54  PHASE                 Starting defense layers
+  2026-04-16 18:34:54  STARTED invariant_checker  PID=62163  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
+  2026-04-16 18:34:54  STARTED autoencoder   PID=62164  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/ae_model.npz
+  2026-04-16 18:34:54  STARTED fusion        PID=62165  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/fusion.py --recovery-script /Users/kinwee/swat-cps-project/scripts/recovery/recovery_agent.py
+  2026-04-16 18:34:54  WAITING               Defense layers initialising (15s baseline)...
+  2026-04-16 18:35:09  BASELINE              Defense layers report clean — ready for attack
+  2026-04-16 18:35:09  PHASE                 Launching attack
+  2026-04-16 18:35:09  STARTED phase1        PID=62207  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 30
+  2026-04-16 18:35:11  STARTED phase2        PID=62209  cmd=/Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/adv_model.npz --duration 30
+  2026-04-16 18:35:11  MONITORING            Attack running for 30s — watching for detection
+  2026-04-16 18:35:25  STATE SAVED           mid_attack_state.json: LIT101=650.0mm  MV101=2
+  2026-04-16 18:35:26  STATE SAVED           mid_attack_state.json: LIT101=650.0mm  MV101=2
+  2026-04-16 18:35:41  STATE SAVED           post_attack_state.json: LIT101=650.0mm  MV101=2
+
+======================================================================

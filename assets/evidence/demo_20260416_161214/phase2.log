@@ -1,0 +1,25 @@
+# phase2
+# Command: /home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /home/ubuntu/Desktop/Group 2/swat-cps-project/adv_model.npz --duration 120
+# Started: 2026-04-16 16:12:51
+
+[LOG] Writing to /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/../../logs/phase2_20260416_161251.log
+[2026-04-16 16:12:51] [*] Loading /home/ubuntu/Desktop/Group 2/swat-cps-project/adv_model.npz...
+Traceback (most recent call last):
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/lib/python3.10/site-packages/numpy/lib/_npyio_impl.py", line 491, in load
+    return pickle.load(fid, **pickle_kwargs)
+_pickle.UnpicklingError: invalid load key, '\x00'.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py", line 246, in <module>
+    main()
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py", line 243, in main
+    attack(args.plc_ip, args.model, args.duration)
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py", line 173, in attack
+    weights, mu, sigma, window, feat_cols = load_np_adv(model_path)
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/attack/phase2_spoof.py", line 69, in load_np_adv
+    m = np.load(model_path, allow_pickle=True)
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/lib/python3.10/site-packages/numpy/lib/_npyio_impl.py", line 493, in load
+    raise pickle.UnpicklingError(
+_pickle.UnpicklingError: Failed to interpret file '/home/ubuntu/Desktop/Group 2/swat-cps-project/adv_model.npz' as a pickle

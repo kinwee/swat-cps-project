@@ -1,0 +1,8 @@
+# phase2
+# Command: /Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase2_spoof.py attack --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/adv_model.npz --duration 30
+# Started: 2026-04-16 18:35:11
+
+[LOG] Writing to /Users/kinwee/swat-cps-project/scripts/attack/../../logs/phase2_20260416_183511.log
+[2026-04-16 18:35:11] [*] Loading /Users/kinwee/swat-cps-project/adv_model.npz...
+[2026-04-16 18:35:11] [*] Adversarial attack -> PLC 192.168.1.10  duration=30s  epsilon=0.1
+[2026-04-16 18:35:51] [+] Simulation disabled. Phase 2 complete. 0 cycles.

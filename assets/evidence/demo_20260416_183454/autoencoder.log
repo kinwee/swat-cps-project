@@ -1,0 +1,4 @@
+# autoencoder
+# Command: /Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/defense/autoencoder_detector.py monitor --plc-ip 192.168.1.10 --model /Users/kinwee/swat-cps-project/ae_model.npz
+# Started: 2026-04-16 18:34:54
+

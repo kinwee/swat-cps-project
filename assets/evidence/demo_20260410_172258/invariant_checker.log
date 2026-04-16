@@ -1,0 +1,19 @@
+# invariant_checker
+# Command: /home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
+# Started: 2026-04-10 17:22:59
+
+[*] Invariant Checker  PLC=192.168.1.10  interval=1.0s
+[17:22:59] cycle=    1  *** VIOLATION ***
+Traceback (most recent call last):
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py", line 103, in main
+    tprint(f"             {inv_id}: {msg}")
+NameError: name 'tprint' is not defined. Did you mean: 'print'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py", line 114, in <module>
+    main()
+  File "/home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py", line 108, in main
+    tprint(f"[!] Error: {e} — reconnecting in 3s...")
+NameError: name 'tprint' is not defined. Did you mean: 'print'?

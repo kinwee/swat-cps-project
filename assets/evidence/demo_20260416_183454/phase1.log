@@ -1,0 +1,12 @@
+# phase1
+# Command: /Users/kinwee/swat-cps-project/.venv/bin/python3 /Users/kinwee/swat-cps-project/scripts/attack/phase1_inject.py --plc-ip 192.168.1.10 --duration 30
+# Started: 2026-04-16 18:35:09
+
+============================================================
+[LOG] Writing to /Users/kinwee/swat-cps-project/scripts/attack/../../logs/phase1_20260416_183509.log
+[2026-04-16 18:35:09]   SWaT Phase 1 — Direct CIP Tag Injection
+[2026-04-16 18:35:09]   PLC1: 192.168.1.10   PLC2: 192.168.1.20
+[2026-04-16 18:35:09]   Duration: 30s
+[2026-04-16 18:35:09]   Started: 2026-04-16 18:35:09
+============================================================
+[!] Cannot reach PLC1 at 192.168.1.10: Unknown error timed out
