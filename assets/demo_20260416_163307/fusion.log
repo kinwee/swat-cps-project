@@ -1,0 +1,196 @@
+# fusion
+# Command: /home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/fusion.py --recovery-script /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/recovery/recovery_agent.py
+# Started: 2026-04-16 16:33:08
+
+2026-04-16 16:33:08,060 [FUSION] INFO Fusion engine started. Waiting for flag files...
+2026-04-16 16:33:09,062 [FUSION] WARNING Partial signal: score=1.5 (inv=1 ae=0) — window=[0.0, 1.5]
+2026-04-16 16:33:10,062 [FUSION] WARNING Partial signal: score=1.5 (inv=1 ae=0) — window=[0.0, 1.5, 1.5]
+2026-04-16 16:33:11,064 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:11,064 [FUSION] ERROR → Triggering RECOVERY PIPELINE
+2026-04-16 16:33:12,068 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:13,070 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:14,072 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:15,073 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:16,075 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:17,076 [FUSION] ERROR ⚠ ALERT: score=1.5 sustained 3 cycles (inv=1 ae=0)
+2026-04-16 16:33:18,078 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:19,080 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:20,081 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:21,083 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:22,085 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:23,087 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:24,089 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:25,091 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:26,092 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:27,094 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:28,096 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:29,098 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:30,100 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:31,102 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:32,104 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:33,106 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:34,108 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:35,110 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:36,111 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:37,113 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:38,115 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:39,117 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:40,119 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:41,121 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:41,121 [FUSION] ERROR → Triggering RECOVERY PIPELINE
+2026-04-16 16:33:42,124 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:43,126 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:44,128 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:45,128 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:46,130 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:47,131 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:48,133 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:49,135 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:50,137 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:51,139 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:52,141 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:53,143 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:54,145 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:55,147 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:56,149 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:57,151 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:58,153 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:33:59,154 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:00,156 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:01,158 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:02,160 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:03,162 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:04,164 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:05,166 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:06,168 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:07,170 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:08,175 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:09,177 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:10,179 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:11,181 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:11,181 [FUSION] ERROR → Triggering RECOVERY PIPELINE
+2026-04-16 16:34:12,187 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:13,188 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:14,190 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:15,192 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:16,194 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:17,196 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:18,198 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:19,200 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:20,202 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:21,204 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:22,206 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:23,208 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:24,210 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:25,212 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:26,214 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:27,215 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:28,217 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:29,219 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:30,221 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:31,223 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:32,225 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:34:33,227 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[2.5, 2.5, 1.0]
+2026-04-16 16:34:34,229 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[2.5, 1.0, 1.0]
+2026-04-16 16:34:35,231 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:36,233 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:37,235 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:38,237 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:39,238 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:40,240 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:41,242 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:42,244 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:43,246 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:44,248 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:45,250 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:46,252 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:47,254 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:48,256 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:49,257 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:50,259 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:51,261 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:52,263 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:53,265 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:54,267 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:55,268 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:56,270 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:57,272 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:58,274 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:34:59,276 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:00,278 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:01,280 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:02,282 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:03,284 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:04,286 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:05,287 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:06,289 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:07,291 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:08,297 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:09,299 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:10,301 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:11,303 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:12,305 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:13,307 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:14,308 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:15,310 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:16,312 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:17,314 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:18,316 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:19,318 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:20,320 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:21,322 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:22,324 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:23,326 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:24,328 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:25,330 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:26,331 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:27,333 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:28,335 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:29,337 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:30,339 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:31,341 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:32,343 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:33,345 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:34,346 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:35,348 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:36,350 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:37,352 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:38,354 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:39,356 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:40,358 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:41,360 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:42,362 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:43,364 [FUSION] WARNING Partial signal: score=1.0 (inv=0 ae=1) — window=[1.0, 1.0, 1.0]
+2026-04-16 16:35:44,366 [FUSION] WARNING Partial signal: score=2.5 (inv=1 ae=1) — window=[1.0, 1.0, 2.5]
+2026-04-16 16:35:45,368 [FUSION] WARNING Partial signal: score=2.5 (inv=1 ae=1) — window=[1.0, 2.5, 2.5]
+2026-04-16 16:35:46,369 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:46,369 [FUSION] ERROR → Triggering RECOVERY PIPELINE
+2026-04-16 16:35:47,371 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:48,373 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:49,375 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:50,377 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:51,379 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:52,381 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:53,383 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:54,384 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:55,386 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:56,388 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:57,390 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:58,392 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:35:59,394 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:00,396 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:01,398 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:02,400 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:03,402 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:04,404 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:05,406 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:06,407 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:07,409 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:08,417 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:09,418 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:10,420 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:11,422 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:12,423 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:13,425 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:14,427 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)
+2026-04-16 16:36:15,429 [FUSION] ERROR ⚠ ALERT: score=2.5 sustained 3 cycles (inv=1 ae=1)

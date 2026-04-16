@@ -1,0 +1,478 @@
+# invariant_checker
+# Command: /home/ubuntu/Desktop/Group 2/swat-cps-project/.venv/bin/python3 /home/ubuntu/Desktop/Group 2/swat-cps-project/scripts/defense/invariant_checker.py --plc-ip 192.168.1.10
+# Started: 2026-04-16 16:33:07
+
+[*] Invariant Checker  PLC=192.168.1.10  interval=1.0s
+[16:33:08] cycle=    1  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=606.7mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=606.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=606.7mm
+[16:33:09] cycle=    2  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=605.8mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=605.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=605.8mm
+[16:33:10] cycle=    3  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=605.0mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=605.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=605.0mm
+[16:33:11] cycle=    4  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=604.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=604.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=604.1mm
+[16:33:12] cycle=    5  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=603.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=603.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=603.4mm
+[16:33:13] cycle=    6  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=603.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=603.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=603.4mm
+[16:33:14] cycle=    7  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=602.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=602.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=602.6mm
+[16:33:15] cycle=    8  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=602.3mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=602.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=602.3mm
+[16:33:16] cycle=    9  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=601.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=601.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=601.4mm
+[16:33:17] cycle=   10  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=601.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=601.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=601.4mm
+[16:33:18] cycle=   11  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=600.8mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=600.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=600.8mm
+[16:33:19] cycle=   12  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=600.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=600.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=600.1mm
+[16:33:20] cycle=   13  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=598.9mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=598.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=598.9mm
+[16:33:21] cycle=   14  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=598.7mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=598.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=598.7mm
+[16:33:22] cycle=   15  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=597.5mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=597.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=597.5mm
+[16:33:23] cycle=   16  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=597.0mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=597.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=597.0mm
+[16:33:24] cycle=   17  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=596.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=596.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=596.4mm
+[16:33:25] cycle=   18  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=595.5mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=595.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=595.5mm
+[16:33:26] cycle=   19  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=595.5mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=595.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=595.5mm
+[16:33:27] cycle=   20  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=595.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=595.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=595.1mm
+[16:33:28] cycle=   21  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=594.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=594.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=594.6mm
+[16:33:29] cycle=   22  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=594.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=594.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=594.1mm
+[16:33:30] cycle=   23  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=594.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=594.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=594.1mm
+[16:33:31] cycle=   24  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=593.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=593.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=593.1mm
+[16:33:32] cycle=   25  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=593.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=593.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=593.1mm
+[16:33:33] cycle=   26  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=592.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=592.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=592.6mm
+[16:33:34] cycle=   27  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=592.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=592.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=592.1mm
+[16:33:35] cycle=   28  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=592.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=592.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=592.1mm
+[16:33:36] cycle=   29  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=589.5mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=589.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=589.5mm
+[16:33:37] cycle=   30  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=589.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=589.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=589.4mm
+[16:33:38] cycle=   31  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=587.3mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=587.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=587.3mm
+[16:33:39] cycle=   32  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=587.3mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=587.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=587.3mm
+[16:33:40] cycle=   33  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=585.3mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=585.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=585.3mm
+[16:33:41] cycle=   34  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=585.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=585.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=585.1mm
+[16:33:42] cycle=   35  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=583.7mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=583.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=583.7mm
+[16:33:43] cycle=   36  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=583.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=583.7mm
+[16:33:44] cycle=   37  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=583.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=583.7mm
+[16:33:45] cycle=   38  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=583.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=583.7mm
+[16:33:46] cycle=   39  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=583.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=583.4mm
+[16:33:47] cycle=   40  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=582.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=582.2mm
+[16:33:48] cycle=   41  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=582.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=582.2mm
+[16:33:49] cycle=   42  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=581.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=581.4mm
+[16:33:50] cycle=   43  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=581.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=581.4mm
+[16:33:51] cycle=   44  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=580.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=580.4mm
+[16:33:52] cycle=   45  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=580.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=580.4mm
+[16:33:53] cycle=   46  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=580.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=580.4mm
+[16:33:54] cycle=   47  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=579.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=579.9mm
+[16:33:55] cycle=   48  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=587.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=587.7mm
+[16:33:56] cycle=   49  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=595.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=595.0mm
+[16:33:57] cycle=   50  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=602.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=602.3mm
+[16:33:58] cycle=   51  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=609.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=609.6mm
+[16:33:59] cycle=   52  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=616.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=616.9mm
+[16:34:00] cycle=   53  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=624.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=624.2mm
+[16:34:01] cycle=   54  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=631.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=631.5mm
+[16:34:02] cycle=   55  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=638.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=638.8mm
+[16:34:03] cycle=   56  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=646.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=646.1mm
+[16:34:04] cycle=   57  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=653.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=653.3mm
+[16:34:05] cycle=   58  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=660.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=660.6mm
+[16:34:06] cycle=   59  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=667.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=667.9mm
+[16:34:07] cycle=   60  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=675.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=675.2mm
+[16:34:08] cycle=   61  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=682.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=682.5mm
+[16:34:09] cycle=   62  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=689.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=689.8mm
+[16:34:10] cycle=   63  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=697.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=697.1mm
+[16:34:11] cycle=   64  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=704.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=704.4mm
+[16:34:12] cycle=   65  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=711.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=711.7mm
+[16:34:13] cycle=   66  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=719.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=719.0mm
+[16:34:14] cycle=   67  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=726.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=726.3mm
+[16:34:15] cycle=   68  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=726.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=726.3mm
+[16:34:16] cycle=   69  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=733.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=733.6mm
+[16:34:17] cycle=   70  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=740.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=740.9mm
+[16:34:18] cycle=   71  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=748.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=748.2mm
+[16:34:19] cycle=   72  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=755.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=755.5mm
+[16:34:20] cycle=   73  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=762.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=762.8mm
+[16:34:21] cycle=   74  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=770.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=770.1mm
+[16:34:22] cycle=   75  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=777.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=777.4mm
+[16:34:23] cycle=   76  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=784.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=784.7mm
+[16:34:24] cycle=   77  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=792.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=792.0mm
+[16:34:25] cycle=   78  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=799.3mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=799.3mm
+[16:34:26] cycle=   79  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=806.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=806.6mm
+[16:34:27] cycle=   80  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=813.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=813.9mm
+[16:34:28] cycle=   81  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=821.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=821.2mm
+[16:34:29] cycle=   82  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=828.5mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=828.5mm
+[16:34:30] cycle=   83  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=835.8mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=835.8mm
+[16:34:31] cycle=   84  *** VIOLATION ***
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=843.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=843.1mm
+[16:34:37] cycle=   90  OK  {'HMI_LIT101.Pv': 886.9470825195312, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:34:47] cycle=  100  OK  {'HMI_LIT101.Pv': 952.6651611328125, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:34:57] cycle=  110  OK  {'HMI_LIT101.Pv': 1025.6600341796875, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:35:07] cycle=  120  OK  {'HMI_LIT101.Pv': 1091.313232421875, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:35:18] cycle=  130  OK  {'HMI_LIT101.Pv': 1164.192138671875, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:35:28] cycle=  140  OK  {'HMI_LIT101.Pv': 1229.7032470703125, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:35:38] cycle=  150  OK  {'HMI_LIT101.Pv': 1302.38671875, 'AI_FIT_101_FLOW': -31, 'HMI_MV101.Cmd': 1, 'HMI_P101.Auto': False, 'HMI_P102.Auto': True}
+[16:35:44] cycle=  156  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+[16:35:45] cycle=  157  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+[16:35:46] cycle=  158  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+[16:35:47] cycle=  159  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=511.7mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=511.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=511.7mm
+[16:35:48] cycle=  160  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=510.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=510.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=510.6mm
+[16:35:49] cycle=  161  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=510.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=510.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=510.6mm
+[16:35:50] cycle=  162  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=509.9mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=509.9mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=509.9mm
+[16:35:51] cycle=  163  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=509.6mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=509.6mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=509.6mm
+[16:35:52] cycle=  164  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=509.0mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=509.0mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=509.0mm
+[16:35:53] cycle=  165  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=508.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=508.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=508.4mm
+[16:35:54] cycle=  166  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=508.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=508.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=508.4mm
+[16:35:55] cycle=  167  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=508.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=508.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=508.4mm
+[16:35:56] cycle=  168  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=507.7mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=507.7mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=507.7mm
+[16:35:57] cycle=  169  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=507.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=507.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=507.4mm
+[16:35:58] cycle=  170  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=507.2mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=507.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=507.2mm
+[16:35:59] cycle=  171  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=506.4mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=506.4mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=506.4mm
+[16:36:00] cycle=  172  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=506.1mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=506.1mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=506.1mm
+[16:36:01] cycle=  173  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=505.2mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=505.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=505.2mm
+[16:36:02] cycle=  174  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=505.2mm — Phase 1 attack signature
+             I-9b: MV101=CLOSED but P102=ON (backup pump running) — tank still draining, LIT101=505.2mm — attack ongoing
+             I-9c: MV101=CLOSED with invalid FIT101=-31.0 — sensor anomaly under attack, LIT101=505.2mm
+[16:36:03] cycle=  175  *** VIOLATION ***
+             I-2: P101=ON but FIT101=-31.000 < 0.4
+             I-6: P101=ON and P102=ON simultaneously
+             I-9: MV101=CLOSED but P101=ON — tank draining with no inflow, LIT101=503.7mm — Phase 1 attack signature
