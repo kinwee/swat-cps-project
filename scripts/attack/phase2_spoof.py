@@ -21,16 +21,14 @@ from datetime import datetime
 from pylogix import PLC
 
 EPSILON   = 0.1
-FEATURES  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']
+FEATURES  = ['HMI_LIT101.Pv']
 
 SIM_TAGS = {
     'HMI_LIT101.Pv':   ('HMI_LIT101.Sim',  'HMI_LIT101.Sim_PV'),
-    'AI_FIT_101_FLOW':  ('HMI_FIT101.Sim',   'HMI_FIT101.Sim_PV'),
 }
 
 CSV_TO_TAG = {
     'LIT101.Pv': 'HMI_LIT101.Pv',
-    'FIT101.Pv': 'AI_FIT_101_FLOW',
 }
 
 stop_flag = False

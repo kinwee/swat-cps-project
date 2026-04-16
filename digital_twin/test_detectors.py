@@ -122,9 +122,8 @@ def ae_score(ae_weights, mu, sigma, window_data):
 def load_csv_windows():
     """Load CSV and prepare sliding windows for AE testing."""
     df = pd.read_csv(CSV_PATH, low_memory=False)
-    for c in ['LIT101.Pv', 'FIT101.Pv']:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
-    data = df[['LIT101.Pv', 'FIT101.Pv']].dropna().values.astype(np.float32)
+    df['LIT101.Pv'] = pd.to_numeric(df['LIT101.Pv'], errors='coerce')
+    data = df[['LIT101.Pv']].dropna().values.astype(np.float32)
     return data
 
 
@@ -200,16 +199,14 @@ results['normal'] = {
 separator("SCENARIO 2: Phase 1 Attack (MV101=CLOSED, P101=ON, no evasion)")
 print("[*] Simulating attacked sensor readings for AE...")
 
-# Under Phase 1: LIT101 drops, FIT101 goes to zero
-# Take a normal window as starting point, then inject attack trajectory
+# Under Phase 1: LIT101 drops abnormally fast (MV101 closed, P101 still pumping)
 attack_start_idx = 5000
 ae_scores_phase1 = []
 for i in range(100):
     window = csv_data[attack_start_idx:attack_start_idx+WINDOW].copy()
-    # Simulate attack: FIT101→0, LIT101 drops linearly
+    # Simulate attack: LIT101 drops linearly (no inflow, pump draining)
     for j in range(WINDOW):
         window[j, 0] = max(250, window[0, 0] - (i + j) * 0.7)  # LIT101 drops
-        window[j, 1] = 0.0  # FIT101 = 0 (valve closed)
     score = ae_score(ae_weights, ae_mu, ae_sigma, window)
     ae_scores_phase1.append(score)
 
@@ -262,7 +259,6 @@ if adv_weights is not None:
         # Simulate attack trajectory (same as Phase 1)
         for j in range(WINDOW):
             window[j, 0] = max(250, window[0, 0] - (i + j) * 0.7)
-            window[j, 1] = 0.0
 
         # Apply adversarial perturbation to evade AE
         norm = (window - adv_mu) / adv_sigma

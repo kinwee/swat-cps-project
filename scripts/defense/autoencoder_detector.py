@@ -20,8 +20,8 @@ import pandas as pd
 from datetime import datetime
 from pylogix import PLC
 
-FEATURES  = ['LIT101.Pv', 'FIT101.Pv']
-PLC_TAGS  = ['HMI_LIT101.Pv', 'AI_FIT_101_FLOW']
+FEATURES  = ['LIT101.Pv']
+PLC_TAGS  = ['HMI_LIT101.Pv']
 WINDOW    = 10
 
 
