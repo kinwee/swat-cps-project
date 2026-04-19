@@ -160,6 +160,160 @@ def wait_for_flag(flag_path, expected, timeout=30, label="flag"):
 
 # ── Pre-Flight Checks ────────────────────────────────────────────────────────
 
+# Expected safe baseline state for SWaT P1
+BASELINE_CHECKS = [
+    # (tag, description, check_fn, fix_value_or_None, severity)
+    ('HMI_LIT101.Pv',    'Tank level in normal range (300-850mm)',
+     lambda v: v is not None and 300 <= v <= 850, None, 'CRITICAL'),
+    ('AI_FIT_101_FLOW',  'Flow sensor reading valid (≥ 0 L/s)',
+     lambda v: v is not None and v >= 0, None, 'WARNING'),
+    ('HMI_MV101.Cmd',    'Inlet valve MV101 = OPEN (Cmd=2)',
+     lambda v: v == 2, 2, 'CRITICAL'),
+    ('HMI_MV101.Auto',   'MV101 in auto mode (Auto=True)',
+     lambda v: v == True, True, 'CRITICAL'),
+    ('HMI_P101.Auto',    'Pump P101 in auto mode (Auto=True)',
+     lambda v: v == True, True, 'WARNING'),
+    ('HMI_LIT101.Sim',   'LIT101 simulation OFF (Sim=False)',
+     lambda v: v in (False, 0, None), False, 'CRITICAL'),
+]
+
+# Extended tags to read for full state picture
+ALL_PREFLIGHT_TAGS = [
+    'HMI_LIT101.Pv', 'AI_FIT_101_FLOW',
+    'HMI_MV101.Cmd', 'HMI_MV101.Auto',
+    'HMI_P101.Auto', 'HMI_P101.Cmd',
+    'HMI_P102.Auto',
+    'HMI_LIT101.Sim',
+    'HMI_FIT101.Sim' if not None else 'AI_FIT_101_FLOW.Sim',
+]
+
+
+def read_full_state(plc_ip, use_sim=False):
+    """Read all relevant PLC tags for baseline validation."""
+    try:
+        if use_sim:
+            sys.path.insert(0, TWIN)
+            from plc_simulator import TAG_STORE
+            return {tag: TAG_STORE.get(tag) for tag in ALL_PREFLIGHT_TAGS}
+        from pylogix import PLC
+        with PLC() as plc:
+            plc.IPAddress = plc_ip
+            results = plc.Read(ALL_PREFLIGHT_TAGS)
+            if not isinstance(results, list):
+                results = [results]
+            return {r.TagName: r.Value for r in results}
+    except Exception as e:
+        error(f"PLC read failed: {e}")
+        return {}
+
+
+def validate_baseline(plc_ip, use_sim=False, auto_fix=True, max_wait=60):
+    """
+    Validate plant is in safe baseline state before starting demo.
+    If auto_fix=True, attempt to write safe values for fixable tags.
+    Waits up to max_wait seconds for the plant to reach safe state.
+    Returns (ok, state_dict).
+    """
+    event("BASELINE CHECK", "Validating plant is in safe operating state")
+
+    start = time.time()
+    attempt = 0
+
+    while time.time() - start < max_wait:
+        attempt += 1
+        state = read_full_state(plc_ip, use_sim)
+
+        if not state:
+            error("Cannot read PLC — check connectivity")
+            time.sleep(3)
+            continue
+
+        all_ok = True
+        issues = []
+        fixes_applied = []
+
+        for tag, desc, check_fn, fix_val, severity in BASELINE_CHECKS:
+            val = state.get(tag)
+            ok = check_fn(val)
+
+            if ok:
+                event("BASELINE OK", f"  ✓ {tag} = {val}  ({desc})")
+            else:
+                all_ok = False
+                issues.append((tag, val, desc, fix_val, severity))
+                if severity == 'CRITICAL':
+                    error(f"  ✗ {tag} = {val}  EXPECTED: {desc}")
+                else:
+                    event("BASELINE WARN", f"  ⚠ {tag} = {val}  EXPECTED: {desc}")
+
+        if all_ok:
+            event("BASELINE CHECK", f"✓ ALL CHECKS PASSED (attempt {attempt})")
+
+            # Run invariant check on the validated state
+            sys.path.insert(0, os.path.join(REPO, 'scripts', 'defense'))
+            try:
+                from invariant_checker import check_invariants, READ_TAGS
+                inv_state = {}
+                from pylogix import PLC as PLC2
+                with PLC2() as plc:
+                    plc.IPAddress = plc_ip
+                    results = plc.Read(READ_TAGS)
+                    if not isinstance(results, list):
+                        results = [results]
+                    inv_state = {r.TagName: r.Value for r in results if r.Value is not None}
+                violations = check_invariants(inv_state)
+                if violations:
+                    event("BASELINE WARN", f"  Invariant violations in baseline: {[v[0] for v in violations]}")
+                    event("BASELINE WARN", f"  This may indicate residual state — consider manual reset")
+                    for inv_id, msg in violations:
+                        event("BASELINE WARN", f"    {inv_id}: {msg}")
+                else:
+                    event("BASELINE CHECK", "  ✓ All invariants pass on baseline state")
+            except Exception as e:
+                event("BASELINE WARN", f"  Could not run invariant pre-check: {e}")
+
+            return True, state
+
+        # Attempt auto-fix for tags that have a fix value
+        if auto_fix and attempt <= 3:
+            fixable = [(tag, fix_val) for tag, val, desc, fix_val, sev in issues if fix_val is not None]
+            if fixable:
+                event("BASELINE FIX", f"Attempting to fix {len(fixable)} tags...")
+                try:
+                    from pylogix import PLC as PLC3
+                    with PLC3() as plc:
+                        plc.IPAddress = plc_ip
+                        for tag, fix_val in fixable:
+                            ret = plc.Write(tag, fix_val)
+                            fixes_applied.append(tag)
+                            event("BASELINE FIX", f"  → Wrote {tag} = {fix_val}  [{ret.Status}]")
+                except Exception as e:
+                    error(f"  Auto-fix failed: {e}")
+
+                event("BASELINE FIX", f"Waiting 5s for PLC to settle...")
+                time.sleep(5)
+                continue  # re-check after fix
+
+        # Report unfixable issues
+        unfixable = [(tag, val, desc) for tag, val, desc, fix_val, sev in issues if fix_val is None]
+        if unfixable:
+            print()
+            error("═" * 60)
+            error("  PLANT NOT IN SAFE STATE — Cannot proceed")
+            error("═" * 60)
+            for tag, val, desc in unfixable:
+                error(f"  {tag} = {val}")
+                error(f"    Expected: {desc}")
+                error(f"    Action: Fix manually on the HMI/PLC before re-running")
+            error("═" * 60)
+            print()
+
+        time.sleep(3)
+
+    error(f"Baseline validation failed after {max_wait}s")
+    return False, state
+
+
 def preflight(plc_ip, use_sim=False):
     event("PREFLIGHT", "Running pre-flight checks")
     checks = []
@@ -178,20 +332,6 @@ def preflight(plc_ip, use_sim=False):
         event("CHECK", f"PLC OK: LIT101={state['HMI_LIT101.Pv']:.1f}mm  MV101={state.get('HMI_MV101.Cmd')}")
     else:
         event("CHECK", "PLC UNREACHABLE")
-
-    # Check sim tags off
-    sim_off = state.get('HMI_LIT101.Sim') in (False, 0, None)
-    checks.append(('Sim tags off', sim_off))
-    if not sim_off:
-        event("WARNING", "HMI_LIT101.Sim is ON — disabling")
-        try:
-            from pylogix import PLC
-            with PLC() as plc:
-                plc.IPAddress = plc_ip
-                plc.Write('HMI_LIT101.Sim', False)
-                plc.Write('HMI_FIT101.Sim', False)
-        except:
-            pass
 
     # Check flag files writable
     for path in ['/tmp/inv_flag', '/tmp/ae_flag']:
@@ -235,6 +375,17 @@ def run_demo(args):
         if not args.sim:
             error("Pre-flight failed. Fix issues and retry.")
             return False
+
+    # ── 1b. Baseline validation ───────────────────────────────────────────
+    if not args.sim:
+        baseline_ok, baseline_state = validate_baseline(
+            args.plc_ip, use_sim=False, auto_fix=True, max_wait=60)
+        if not baseline_ok:
+            error("Plant not in safe baseline state. Fix issues and retry.")
+            return False
+        event("BASELINE", "Plant in safe operating state — ready for demo")
+    else:
+        event("BASELINE", "Simulator mode — skipping baseline validation")
 
     # ── 2. Save pre-attack state ──────────────────────────────────────────
     save_state(args.plc_ip, 'pre_attack_state.json', args.sim)
