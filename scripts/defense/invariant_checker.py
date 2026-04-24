@@ -19,17 +19,23 @@ READ_TAGS = [
     'HMI_P102.Auto',
 ]
 
+# Tags read from PLC2 (192.168.1.20)
+READ_TAGS_PLC2 = [
+    'HMI_FIT201.Pv',
+]
+
 LIT_HH  = 800.0
 LIT_LL  = 250.0
 FIT_MIN = 0.4
 
 
 def check_invariants(state):
-    lit = state.get('HMI_LIT101.Pv')
-    fit = state.get('AI_FIT_101_FLOW')
-    mv  = state.get('HMI_MV101.Cmd')      # 2=OPEN, 1=CLOSED
-    p1  = state.get('HMI_P101.Auto')     # True=auto/running, False=manual/off
-    p2  = state.get('HMI_P102.Auto')
+    lit  = state.get('HMI_LIT101.Pv')
+    fit  = state.get('AI_FIT_101_FLOW')
+    fit2 = state.get('HMI_FIT201.Pv')   # outlet flow (PLC2)
+    mv   = state.get('HMI_MV101.Cmd')      # 2=OPEN, 1=CLOSED
+    p1   = state.get('HMI_P101.Auto')     # True=auto/running, False=manual/off
+    p2   = state.get('HMI_P102.Auto')
 
     violations = []
     mv_open  = (mv == 2) if mv is not None else None
@@ -39,8 +45,8 @@ def check_invariants(state):
 
     if mv_open and fit is not None and fit < FIT_MIN:
         violations.append(('I-1', f'MV101=OPEN but FIT101={fit:.3f} < {FIT_MIN}'))
-    if p1_on and fit is not None and fit < FIT_MIN:
-        violations.append(('I-2', f'P101=ON but FIT101={fit:.3f} < {FIT_MIN}'))
+    if p1_on and fit2 is not None and fit2 < FIT_MIN:
+        violations.append(('I-2', f'P101=ON but FIT201={fit2:.3f} < {FIT_MIN} — pump running, no outlet flow'))
     if lit is not None and lit > LIT_HH and mv_open:
         violations.append(('I-3', f'LIT101={lit:.1f} > {LIT_HH} but MV101=OPEN'))
     if lit is not None and lit < LIT_LL and p1_on:
@@ -76,21 +82,35 @@ def check_invariants(state):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--plc-ip',        default='192.168.1.10')
+    ap.add_argument('--plc2-ip',       default='192.168.1.20')
     ap.add_argument('--poll-interval', type=float, default=1.0)
     ap.add_argument('--flag-file',     default='/tmp/inv_flag')
     args = ap.parse_args()
 
-    print(f"[*] Invariant Checker  PLC={args.plc_ip}  interval={args.poll_interval}s")
+    print(f"[*] Invariant Checker  PLC1={args.plc_ip}  PLC2={args.plc2_ip}  interval={args.poll_interval}s")
     cycle = 0
     while True:
         try:
-            with PLC() as plc:
-                plc.IPAddress = args.plc_ip
+            with PLC() as plc1, PLC() as plc2:
+                plc1.IPAddress = args.plc_ip
+                plc2.IPAddress = args.plc2_ip
                 while True:
-                    results = plc.Read(READ_TAGS)
+                    results = plc1.Read(READ_TAGS)
                     if not isinstance(results, list):
                         results = [results]
                     state = {r.TagName: r.Value for r in results if r.Value is not None}
+
+                    # Read FIT201 from PLC2
+                    try:
+                        results2 = plc2.Read(READ_TAGS_PLC2)
+                        if not isinstance(results2, list):
+                            results2 = [results2]
+                        for r in results2:
+                            if r.Value is not None:
+                                state[r.TagName] = r.Value
+                    except Exception:
+                        pass  # PLC2 unreachable — I-2 will skip FIT201 check
+
                     violations = check_invariants(state)
                     inv_flag = 1 if violations else 0
                     with open(args.flag_file, 'w') as f:
