@@ -49,8 +49,8 @@ def check_invariants(state):
         violations.append(('I-5', f'LIT101={lit:.1f} < {LIT_LL} but MV101=CLOSED'))
     if p1_on and p2_on:
         violations.append(('I-6', 'P101=ON and P102=ON simultaneously'))
-    if p1_on and mv_closed and fit is not None and fit > FIT_MIN:
-        violations.append(('I-7', f'P101=ON MV101=CLOSED but FIT101={fit:.3f} > {FIT_MIN} — impossible flow'))
+    if not p1_on and mv_closed and fit is not None and fit > FIT_MIN:
+        violations.append(('I-7', f'P101=OFF MV101=CLOSED but FIT101={fit:.3f} > {FIT_MIN} — phantom flow'))
     if fit is not None and fit > 2.0:
         violations.append(('I-8', f'FIT101={fit:.3f} exceeds max (2.0)'))
     # I-9: MV101=CLOSED and P101=OFF while level is in normal operating range
