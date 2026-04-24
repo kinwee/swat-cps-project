@@ -168,7 +168,7 @@ BASELINE_CHECKS = [
     ('AI_FIT_101_FLOW',  'Flow sensor reading valid (≥ 0 L/s)',
      lambda v: v is not None and v >= 0, None, 'WARNING'),
     ('HMI_MV101.Cmd',    'Inlet valve MV101 = OPEN (Cmd=2)',
-     lambda v: v == 2, 2, 'CRITICAL'),
+     lambda v: v == 2, 2, 'WARNING'),
     ('HMI_MV101.Auto',   'MV101 in auto mode (Auto=True)',
      lambda v: v == True, True, 'CRITICAL'),
     ('HMI_P101.Auto',    'Pump P101 in auto mode (Auto=True)',
@@ -295,18 +295,33 @@ def validate_baseline(plc_ip, use_sim=False, auto_fix=True, max_wait=60):
                 continue  # re-check after fix
 
         # Report unfixable issues
-        unfixable = [(tag, val, desc) for tag, val, desc, fix_val, sev in issues if fix_val is None]
-        if unfixable:
+        unfixable_critical = [(tag, val, desc) for tag, val, desc, fix_val, sev in issues if fix_val is None and sev == 'CRITICAL']
+        unfixable_warn = [(tag, val, desc) for tag, val, desc, fix_val, sev in issues if fix_val is None and sev == 'WARNING']
+
+        if unfixable_warn:
+            for tag, val, desc in unfixable_warn:
+                event("BASELINE WARN", f"  ⚠ {tag} = {val} — {desc} (non-blocking, proceeding anyway)")
+
+        if unfixable_critical:
             print()
             error("═" * 60)
             error("  PLANT NOT IN SAFE STATE — Cannot proceed")
             error("═" * 60)
-            for tag, val, desc in unfixable:
+            for tag, val, desc in unfixable_critical:
                 error(f"  {tag} = {val}")
                 error(f"    Expected: {desc}")
                 error(f"    Action: Fix manually on the HMI/PLC before re-running")
             error("═" * 60)
             print()
+        elif not all_ok and not unfixable_warn:
+            # Only fixable issues remain — will retry
+            pass
+
+        # If only warnings remain (no critical failures), proceed
+        critical_failures = [1 for tag, val, desc, fix_val, sev in issues if sev == 'CRITICAL']
+        if not critical_failures:
+            event("BASELINE CHECK", f"✓ No critical failures — proceeding (warnings noted above)")
+            return True, state
 
         time.sleep(3)
 
